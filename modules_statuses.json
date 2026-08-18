@@ -1,0 +1,10 @@
+{
+    "TicketChecker": true,
+    "PageContent": true,
+    "Sliders": true,
+    "Auth": true,
+    "AdminAuth": true,
+    "Event": true,
+    "EventsModule": true,
+    "TicketModule": true
+}

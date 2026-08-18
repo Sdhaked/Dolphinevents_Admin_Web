@@ -1,0 +1,51 @@
+.admin-quill-editor {
+    margin: 0.8rem 0;
+}
+
+.admin-quill-editor .ql-toolbar.ql-snow,
+.admin-quill-editor .ql-container.ql-snow {
+    border-color: var(--color-border-100);
+}
+
+.admin-quill-editor .ql-toolbar.ql-snow {
+    background: var(--color-bg-200);
+    border-radius: 6px 6px 0 0;
+}
+
+.admin-quill-editor .ql-container.ql-snow {
+    background: var(--color-bg-100);
+    border-radius: 0 0 6px 6px;
+    color: var(--color-hd-100);
+    font-family: inherit;
+}
+
+.admin-quill-editor .ql-editor {
+    min-height: 80dvh;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.admin-quill-editor .ql-editor.ql-blank::before {
+    color: var(--color-text-100);
+    font-style: normal;
+}
+
+html.dark .admin-quill-editor .ql-stroke {
+    stroke: var(--color-text-200);
+}
+
+html.dark .admin-quill-editor .ql-fill {
+    fill: var(--color-text-200);
+}
+
+html.dark .admin-quill-editor .ql-picker,
+html.dark .admin-quill-editor .ql-picker-options,
+html.dark .admin-quill-editor .ql-tooltip {
+    color: var(--color-text-200);
+}
+
+html.dark .admin-quill-editor .ql-picker-options,
+html.dark .admin-quill-editor .ql-tooltip {
+    background: var(--color-bg-200);
+    border-color: var(--color-border-100);
+}

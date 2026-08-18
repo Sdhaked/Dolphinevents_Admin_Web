@@ -1,0 +1,695 @@
+body {
+    background: var(--color-bg-400);
+}
+
+.main-sec {
+    min-height: 90dvh;
+    display: flex;
+    align-items: center;
+}
+
+.next-box {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.5rem;
+}
+
+.head-box {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--gap-card);
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+}
+
+.back-box {
+    margin-bottom: 3rem;
+}
+
+/* =====> Choose Tickets Box */
+.ticket-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.ticket-row .ticket-card {
+    position: relative;
+    margin: calc(var(--gap-card) / 2);
+    width: 17rem;
+}
+
+.ticket-row .ticket-card input[type="radio"] {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: +5;
+}
+.ticket-row .ticket-card input[type="radio"]:disabled {
+    display: none;
+}
+
+.ticket-row .ticket-card label {
+    cursor: pointer;
+    display: block;
+    position: relative;
+    padding: 0.8rem;
+    border: 1px solid var(--color-border-300);
+    border-radius: var(--radius-prim);
+    background: var(--color-bg-100);
+    transition: var(--transition-ease);
+}
+
+.ticket-row .ticket-card:hover label {
+    transform: translateY(-5px);
+}
+
+/* Sold Out Tag */
+.ticket-row .ticket-card input[type="radio"] + label .sold-out {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    display: none;
+    padding: 0.2rem 0.6rem;
+    border-radius: 50px;
+    background: red;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 500;
+    z-index: +1;
+}
+.ticket-row .ticket-card input[type="radio"]:disabled + label .sold-out {
+    display: inline-block;
+}
+.ticket-row
+    .ticket-card
+    input[type="radio"]:disabled
+    + label
+    .img-box:hover
+    img {
+    transform: scale(1);
+}
+
+.ticket-row .ticket-card input[type="radio"]:checked + label {
+    box-shadow:
+        var(--my-primary) 0px 0px 2px,
+        var(--my-primary) 0px 0px 0px 2px;
+}
+
+.ticket-row .ticket-card input[type="radio"]:disabled + label {
+    opacity: 0.7;
+}
+.ticket-row .ticket-card:hover input[type="radio"]:disabled + label {
+    transform: translateY(0);
+    cursor: not-allowed;
+}
+
+.ticket-row .ticket-card .text-box .ticket-name {
+    color: var(--my-secoundry);
+    margin: 0.5rem 0 0.8rem 0;
+    font-size: 1rem;
+}
+.ticket-row .ticket-card .text-box .ticket-price {
+    font-weight: 600;
+    color: var(--my-primary);
+    font-size: 1rem;
+    /* font-family: var(--font-secoundry); */
+}
+.ticket-row .ticket-card .text-box .ticket-price sub,
+.ticket-row .ticket-card .text-box .ticket-price sup {
+    font-size: 0.6rem;
+    color: var(--color-text-300);
+    font-weight: 500;
+}
+.ticket-row .ticket-card .text-box hr {
+    border-color: rgb(233 233 233 / 16%);
+}
+.ticket-row .ticket-card .text-box .discount-msg {
+    padding: 0.6rem 0 0 0;
+    color: var(--color-text-200);
+    font-weight: 500;
+    font-size: 0.7rem;
+    border-top: 1px solid var(--color-border-200);
+}
+
+/* =========> Discount Slabs */
+.ticket-row .ticket-card .check-list {
+    padding: 0.6rem 0 0 0;
+    border-top: 1px solid var(--color-border-200);
+}
+
+@media (max-width: 800px) {
+    .ticket-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--gap-card);
+    }
+
+    .ticket-row .ticket-card {
+        margin: 0;
+        width: 100%;
+    }
+}
+
+/* -------> Seats Selection */
+.seats-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: auto;
+    padding: 1rem 0;
+    scrollbar-height: thin; /* For Firefox */
+}
+
+.seats-container::-webkit-scrollbar {
+    height: 0.3rem;
+}
+
+.seats-container::-webkit-scrollbar-thumb {
+    background-color: var(--color-bg-toggle);
+    border-radius: 50px;
+    cursor: grabbing;
+}
+
+.seats-container::-webkit-scrollbar-track {
+    background-color: var(--color-bg-200);
+}
+
+/* ---> Selected Seats Display Screen */
+.selected-seats {
+    color: var(--color-text-400);
+    text-align: center;
+    font-weight: 600;
+}
+.selected-seats span {
+    color: var(--my-primary);
+    text-align: center;
+    display: flex;
+    flex-wrap: wrap;
+    display: inline-block;
+    position: relative;
+}
+.selected-seats span:not(:last-child) {
+    margin-right: 0.3rem;
+    margin-bottom: 0.5rem;
+}
+.selected-seats span:not(:last-child)::after {
+    content: ",";
+}
+
+/* -->Seat selection Explanation box */
+.select-info-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+    align-items: center;
+    margin-top: 2rem;
+    padding: 1rem;
+    border-radius: var(--radius-prim);
+    background-color: var(--color-bg-100);
+}
+.select-info-box > div {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.6rem;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--color-border-100);
+    border-radius: var(--radius-prim);
+    background: var(--color-bg-200);
+}
+.select-info-box > div > span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-300);
+}
+.select-info-box .check-box {
+    border: 1px solid var(--color-border-300);
+    width: 1.2rem;
+    height: 1.2rem;
+    background: var(--color-bg-100);
+    border-radius: 5px;
+    display: grid;
+    place-items: center;
+    font-size: 0.9rem;
+}
+
+.select-info-box .check-box.selected-seat {
+    background: var(--my-primary);
+    color: var(--color-text-toggle);
+}
+
+.select-info-box .check-box.booked-seat {
+    background: var(--my-secoundry);
+    color: var(--color-text-toggle);
+    opacity: 0.5;
+}
+
+/* Coupon Code */
+.coupon-box {
+    display: flex;
+}
+.coupon-box > input {
+    flex-grow: 1;
+    margin-right: 0.5rem;
+}
+.coupon-box > input.active {
+    border-color: var(--color-status-green);
+    color: var(--color-status-green);
+    font-weight: 600;
+}
+.coupon-box > span {
+    flex-shrink: 0;
+    display: grid;
+}
+
+/*--->  Bill */
+.bill-col {
+    display: flex;
+    flex-direction: column;
+}
+.bill-col > *:not(:last-child) {
+    margin-bottom: var(--gap-card);
+}
+
+.bill {
+    padding: 0.8rem 1rem;
+    border: 2px solid var(--color-border-100);
+    border-radius: var(--radius-prim);
+    background: var(--color-bg-100);
+}
+
+.bill table th,
+.bill table td {
+    padding-top: 0.9rem;
+    padding-bottom: 0.9rem;
+}
+.bill table th h6 {
+    color: var(--color-text-300);
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-family: var(--font-primary);
+    margin-bottom: 0.6rem;
+}
+.bill table th p {
+    color: var(--color-text-300);
+    font-weight: 600;
+    font-size: 0.813rem;
+    margin: 0;
+}
+.bill table td {
+    color: var(--color-text-300);
+    text-align: end;
+    align-content: end;
+}
+.bill table tr:not(:last-child) td,
+.bill table tr:not(:last-child) th {
+    border-bottom: 1px solid var(--color-text-300);
+}
+
+.bill table tr h5 {
+    color: var(--my-primary);
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+/* =========> Car Slot */
+.car-slot {
+    padding-top: 1rem;
+    margin-top: 0.7rem;
+    border-top: 1px solid var(--color-border-100);
+}
+
+.car-slot .car-head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--gap-card);
+    flex-wrap: wrap;
+    align-items: center;
+}
+.car-slot .car-head p {
+    margin: 0.3rem 0 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.car-slot .tag-box {
+    margin: 1rem 0;
+}
+.car-slot .tag-box .selected-slot {
+    display: inline-block;
+    margin-left: 0.2rem;
+    padding: 1px 5px;
+    border-radius: 50px;
+    background-color: var(--my-primary);
+    color: whitesmoke;
+}
+
+.car-slot .car-slot-container {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: var(--gap-card);
+    margin-top: 1.2rem;
+}
+.car-slot .car-slot-container .car-slot-item {
+    display: flex;
+    align-items: end;
+    gap: 0.5rem;
+}
+.car-slot .car-slot-container .car-slot-item > div:nth-child(1) {
+    flex-grow: 1;
+}
+.car-slot .car-slot-container .car-slot-item button {
+    flex-shrink: 0;
+    height: 2.8rem;
+    border-radius: 0.5rem;
+}
+
+/* =================================== */
+/* --> Seat selection Stadium Layout */
+/* =================================== */
+.main-seat-container {
+    overflow-x: hidden;
+}
+.main-seat-container .screen-parent {
+    overflow-x: auto;
+}
+.screen-parent {
+    margin-bottom: 1rem;
+}
+.screen-parent::-webkit-scrollbar-track {
+    background: var(--color-bg-100);
+}
+.screen-parent::-webkit-scrollbar {
+    height: 0.5rem;
+}
+.screen-parent::-webkit-scrollbar-thumb {
+    border-radius: 50px;
+}
+
+.screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 3rem;
+}
+.screen > div {
+    width: 50%;
+    /* max-width: 1000px; */
+    height: 3rem;
+    background-color: var(--color-bg-100);
+    border: 1px solid var(--color-border-200);
+    clip-path: polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: -11rem;
+}
+.screen > div > * {
+    margin: 0;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.stadium {
+    display: flex;
+    width: max-content;
+    gap: 1rem;
+    overflow-x: visible;
+    /* padding-bottom: 1rem;
+  margin-bottom: 2rem; */
+    scale: 0.8;
+    padding-top: 5rem;
+}
+
+.stadium > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.stadium > div > div {
+    display: flex;
+    align-items: center;
+}
+
+.stadium .gp {
+    width: 0.95rem;
+    height: 0.95rem;
+    margin: 0.2rem;
+}
+
+.stadium > div input[type="checkbox"] {
+    margin: 2px;
+    border: 1px solid var(--color-border-300);
+    width: 5px;
+    height: 5px;
+    background: var(--color-bg-100);
+    border-radius: 5px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+
+.stadium > div input[type="checkbox"]:checked {
+    background: var(--seat-color, var(--my-primary));
+    color: var(--color-text-toggle);
+}
+
+.stadium > div input[type="checkbox"]:checked::before {
+    content: "\f00c";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    color: white;
+    font-size: 0.7rem;
+}
+
+.stadium > div input[type="checkbox"]:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* .stadium input[type="checkbox"] {
+  width: 10px;
+  height: 10px;
+} */
+
+.stadium .RW > div,
+.stadium .CLW > div {
+    justify-content: end;
+}
+
+.stadium .LW {
+    transform: rotate(49deg);
+    transform-origin: top right;
+    /* margin-left: 2rem; */
+    margin-right: -13rem;
+    margin-top: 5rem;
+}
+
+.stadium .RW {
+    transform: rotate(-49deg);
+    transform-origin: top left;
+    /* margin-right: 2rem; */
+    margin-left: -13rem;
+    margin-top: 5rem;
+}
+
+/* ==========> Thankyou box */
+.thankyou-card {
+    animation: fadeInUp 0.6s ease;
+    position: relative;
+}
+
+.thankyou-card .card-content {
+    text-align: center;
+}
+
+.thankyou-card .icon-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+.thankyou-card .icon-container img {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 100%;
+    object-fit: cover;
+    box-shadow: #a0f0c1a2 0px 0px 0px 4px;
+}
+
+.thankyou-card .badge {
+    background: #a0f0c1;
+    color: #0c4a36;
+    padding: 0.3rem 1rem;
+    border-radius: 999px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.thankyou-card .main-message {
+    margin: 1rem 0 3rem 0;
+}
+.thankyou-card .main-message h1 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0.8rem 0;
+    font-family: var(--font-primary);
+    color: var(--color-text-400);
+    margin-bottom: 1.3rem;
+}
+
+.thankyou-card .main-message p {
+    color: #666;
+}
+
+.thankyou-card .details-card {
+    background: #edfbf3;
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-top: 1.5rem;
+}
+.thankyou-card .email-card {
+    margin: 2rem 0;
+}
+
+.thankyou-card .detail-header,
+.thankyou-card .email-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    color: #166534;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.thankyou-card .details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #4b5563;
+}
+
+.thankyou-card .email {
+    background: rgba(160, 240, 193, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.thankyou-card .actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.thankyou-card .support {
+    margin-top: 2rem;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.thankyou-card .booking-id {
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+.thankyou-card .icon {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+    stroke: currentColor;
+}
+
+/* ========================= */
+.voting-container {
+    width: 100%;
+    max-width: 25rem;
+    margin: auto;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    place-items: center;
+    min-height: 88dvh;
+}
+.voting-container.max-full {
+    max-width: 100%;
+}
+.voting-container > div {
+    width: 100%;
+}
+
+.voting-container .otp-operations {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+}
+.voting-container .otp-operations button {
+    font-size: 0.7rem;
+}
+
+.voting-container .choose-row {
+    margin: 20px 0;
+}
+.voting-container .choose-row .ticket-card {
+    width: 14rem;
+}
+@media (max-width: 800px) {
+    .voting-container .choose-row .ticket-card {
+        width: 100%;
+    }
+}
+
+.voting-container .choose-row .info-box .name {
+    font-size: 0.9rem;
+    color: var(--color-text-300);
+    margin-top: 0.8rem;
+    margin-bottom: 0.9rem;
+}
+
+.voting-container .choose-row .contact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.voting-container .choose-row .contact-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.voting-container .choose-row .contact-list li i {
+    color: var(--my-primary);
+    font-size: 0.8rem;
+    margin-right: 0.3rem;
+}
+.voting-container .choose-row .contact-list li span {
+    font-size: 0.7rem;
+}
+.voting-container .choose-row .social-list {
+    margin-bottom: 1rem;
+}
+.voting-container .choose-row .social-list a {
+    font-size: 0.7rem;
+}

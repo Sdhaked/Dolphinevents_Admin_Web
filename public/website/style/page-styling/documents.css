@@ -1,0 +1,21 @@
+.p-box {
+  padding: 25px 0;
+}
+.p-box > * {
+  color: var(--color-text-200);
+}
+
+.p-box h3 {
+  color: var(--color-text-100);
+}
+
+ul {
+  margin-left: 17px;
+}
+
+.update-date {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.6rem;
+  color: var(--my-secoundry);
+}

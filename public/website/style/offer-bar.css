@@ -1,0 +1,222 @@
+/* ----> Offer active animation */
+#celebrateBtn {
+  padding: 12px 24px;
+  font-size: 18px;
+  cursor: pointer;
+  background: #ff5722;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+#confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ----> Offerbar CSS */
+.offer-bar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1.5rem 3rem;
+  text-align: center;
+  position: relative;
+  border-radius: var(--radius-prim);
+  margin-top: 1.5rem;
+  margin-bottom: 3rem;
+  transition: transform 0.3s ease;
+}
+
+.offer-bar .offer-zone {
+  position: relative;
+}
+
+.offer-bar .offer-tags {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.offer-bar .offer-tags .offer-value {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.7rem;
+  height: 1.7rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 50px;
+  background: var(--color-bg-100);
+  z-index: 2;
+  transition: background 0.3s, box-shadow 0.3s, color 0.3s;
+}
+
+.offer-bar .offer-tags .offer-value.active {
+  box-shadow: rgba(5, 147, 71, 0.16) 0px 1px 4px,
+    rgb(6, 222, 71) 0px 0px 0px 2px;
+  background: rgb(196 253 218);
+  color: rgb(62, 128, 0);
+}
+
+.offer-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 3s infinite;
+}
+
+.offer-bar:hover {
+  transform: translateY(-2px);
+}
+
+.offer-bar:hover .progress-fill {
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.7);
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.offer-bar .offer-content {
+  position: relative;
+  z-index: 1;
+}
+
+.offer-bar .offer-text {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.offer-bar .amount {
+  color: #ffd700;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.offer-bar .highlight {
+  color: #ffd700;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.offer-bar .progress-container {
+  margin-top: 15px;
+}
+
+.offer-bar .progress-track {
+  background: rgba(255, 255, 255, 0.2);
+  height: 8px;
+  border-radius: 1rem;
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+
+.offer-bar .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd700, #ffed4e);
+  border-radius: 20px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  /* transition: width 0.3s ease; */
+  position: relative;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.offer-bar .progress-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: flow 2s infinite;
+}
+
+@keyframes flow {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.offer-bar .progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.offer-bar.completed {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 8px 40px rgba(255, 215, 0, 0.6);
+  }
+}
+
+@media (max-width: 768px) {
+  .offer-bar {
+    padding: 1.5rem 1rem;
+  }
+
+  .offer-bar .offer-text {
+    font-size: 0.75rem;
+  }
+
+  .offer-bar .amount {
+    font-size: 0.8rem;
+  }
+
+  .offer-bar .progress-labels {
+    font-size: 0.6rem;
+  }
+
+  .offer-bar .offer-tags .offer-value {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.5rem;
+  }
+}

@@ -1,0 +1,248 @@
+.coupon-box {
+  display: flex;
+  margin-top: 0.2rem;
+}
+.coupon-box input {
+  width: 100%;
+  max-width: 35rem;
+  margin-right: 0.5rem;
+}
+
+.bill-table {
+  border: 2px solid var(--color-secoundry);
+  padding: 1rem;
+}
+.bill-table th {
+  width: 60%;
+}
+.bill-table td {
+  width: 40%;
+}
+.bill-table h6,
+.bill-table p {
+  margin: 0;
+}
+
+.promote-msg {
+  padding: 0.6rem 0;
+  margin: 0.8rem 0;
+  border-top: 1px solid var(--color-border-100);
+  border-bottom: 1px solid var(--color-border-100);
+}
+.promote-msg p {
+  color: var(--color-secoundry);
+  margin: 0;
+  text-align: center;
+}
+.promote-msg p b {
+  color: var(--color-primary);
+}
+
+.seat-tag {
+  display: flex;
+  align-items: center;
+}
+.seat-tag * > {
+  flex-shrink: 0;
+}
+.seat-tag button {
+  width: 0.8rem;
+  height: 0.8rem;
+  font-size: 0.7rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-status-danger);
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.seat-layout {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  max-width: 300px;
+  margin: auto;
+}
+
+.seat-info-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-100);
+  border-radius: var(--radius-sec);
+  gap: 1rem;
+  margin-top: 2.8rem;
+}
+
+/* ========= Car Slots */
+.car-slots-section {
+  border-top: 1px solid var(--color-border-100);
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+.car-slots-section .car-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap-card);
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.car-slots-section .car-slots-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gap-card);
+}
+
+.car-slots-section .car-slots-container .car-slot-item {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-card);
+}
+
+
+
+/* =========================
+        VOTE CARD UI
+========================= */
+
+.vote-card {
+  position: relative;
+  display: block;
+  padding: 1.2rem;
+  border-radius: 1.2rem;
+  background-color: var(--color-bg-200);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: var(--transition-ease);
+  overflow: hidden;
+  box-shadow: var(--low-shadow);
+}
+
+.vote-card:hover {
+  transform: var(--hover-transform);
+}
+
+.vote-img {
+  aspect-ratio: 1/1;
+  overflow: hidden;
+  border-radius: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.vote-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vote-content h4 {
+  color: var(--color-hd-100);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.vote-content p {
+  color: var(--color-text-200);
+  font-size: 0.7rem;
+  margin-bottom: 0.35rem;
+}
+
+.social-link {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-bg-100);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: var(--transition-linear);
+  border: 1px solid var(--color-border-100);
+}
+
+.social-link:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* =========================
+        CUSTOM RADIO
+========================= */
+.main-row-modal44{
+  margin-bottom: 15px;
+  max-height: 75dvh;
+  overflow-y: auto;
+}
+.vote-radio {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #d5d5d5;
+  border: 4px solid #ececec;
+  transition: var(--transition-linear);
+}
+
+/* Selected Card */
+.btn-check:checked + .vote-card {
+  border-color: var(--color-primary);
+}
+
+.btn-check:checked + .vote-card .vote-radio {
+  background: var(--color-primary);
+  border-color: #e8d9ff;
+}
+
+/* =========================
+        BUTTONS
+========================= */
+
+.vote-btn {
+  min-width: 180px;
+  padding: 0.9rem 1.8rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+  transition: var(--transition-linear);
+}
+
+.primary-btn {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primary-btn:hover {
+  transform: var(--hover-transform);
+}
+
+.secondary-btn {
+  background: var(--color-bg-200);
+  color: var(--color-hd-100);
+  border: 1px solid var(--color-border-100);
+}
+
+.secondary-btn:hover {
+  background: var(--color-bg-300);
+}
+
+/* =========================
+        DARK MODE
+========================= */
+html.dark .vote-card {
+  background: var(--color-bg-200);
+}
+
+html.dark .vote-radio {
+  background: #4b5563;
+  border-color: #6b7280;
+}

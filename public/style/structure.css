@@ -1,0 +1,552 @@
+/*++++++++++++++++++++++++++++++++
+        Side bar css 
+  ++++++++++++++++++++++++++++++++*/
+.side-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: var(--sidenav-width);
+  background: var(--base-lite);
+  border-right: 1px solid var(--color-border-100);
+  transition: var(--transition-linear);
+  z-index: 11;
+}
+
+/*ON {sidebar close} effect on sidebar*/
+.side-nav.close {
+  width: 73px;
+}
+.side-nav.close:hover {
+  width: var(--sidenav-width);
+}
+
+/* +++++++ Sidebar Menu Items Div CSS */
+.side-nav .menu-items {
+  padding: 20px 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.side-nav .menu-items::-webkit-scrollbar {
+  width: 0.2rem;
+}
+
+.side-nav .menu-items::-webkit-scrollbar-thumb {
+  background-color: #e5e5e5;
+}
+html.dark .side-nav .menu-items::-webkit-scrollbar-thumb {
+  background-color: #2b3248;
+}
+
+/* +++++++ Sidebar Nav <ul> CSS */
+.side-nav .nav-ul {
+  --link-f-size: 13px;
+  padding: 0;
+}
+
+/* +++++++ Sidebar Label <li> CSS */
+.side-nav .nav-ul .label-li {
+  padding: 0px 22px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-100);
+}
+
+/*ON {sidebar close} effect on label <li>*/
+.side-nav.close .nav-ul .label-li {
+  display: none;
+}
+.side-nav.close:hover .nav-ul .label-li {
+  display: block;
+}
+
+.side-nav .nav-ul .label-li:not(:first-child) {
+  margin-top: 25px;
+}
+
+/* +++++++ Sidebar Main <li> CSS */
+.side-nav .menu-items .main-li {
+  list-style: none;
+}
+
+.side-nav .nav-ul .main-li .nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  padding: 10px 22px;
+  font-size: var(--link-f-size);
+  font-weight: 500;
+  color: var(--color-text-200);
+  transition: var(--transition-ease);
+}
+
+/* *********************** */
+.side-nav .nav-ul .main-li.addEventBtn {
+  padding: 0 22px;
+  margin-bottom: 0.5rem;
+}
+.side-nav .nav-ul .main-li.addEventBtn .nav-link {
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-prim);
+}
+.side-nav.close:hover .nav-ul .main-li.addEventBtn .nav-link {
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-prim);
+}
+.side-nav .nav-ul .main-li.addEventBtn .nav-link:hover {
+  color: var(--color-primary);
+}
+.side-nav.close .nav-ul .main-li.addEventBtn .nav-link {
+  border: 2px solid transparent;
+  padding: 10px 0px;
+}
+.side-nav.close:hover .nav-ul .main-li.addEventBtn .nav-link {
+  padding: 10px 22px;
+}
+.side-nav .menu-items .main-li.addEventBtn .nav-link > i {
+  min-width: fit-content !important;
+}
+.side-nav .menu-items .main-li.addEventBtn .nav-link .link-name {
+  margin-left: 1.2rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .side-nav.close .nav-ul .main-li.addEventBtn .nav-link {
+    border: 2px solid var(--color-primary);
+    padding: 10px 22px;
+  }
+}
+/* *********************** */
+
+.side-nav .menu-items .event-selector {
+  margin: 0 22px;
+  opacity: 1;
+  transition: var(--transition-ease);
+}
+.side-nav.close .menu-items .event-selector {
+  opacity: 0;
+}
+.side-nav.close:hover .menu-items .event-selector {
+  opacity: 1;
+}
+
+@media (max-width: 800px) {
+  .side-nav.close .menu-items .event-selector {
+    opacity: 1;
+  }
+}
+/* xxxxxxxxxxxxxxxxxxxxx */
+
+.side-nav .nav-ul .main-li .nav-link.active,
+.side-nav .nav-ul .main-li .nav-link.active:hover {
+  color: var(--color-primary);
+}
+.side-nav .nav-ul .main-li:hover .nav-link {
+  color: var(--color-text-100);
+}
+
+.side-nav .nav-ul .main-li .nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: 0px;
+  height: 100%;
+  width: 3px;
+  background-color: var(--color-primary);
+}
+.side-nav .nav-ul .dropdown .main-li .nav-link.active::before {
+  display: none;
+}
+
+.side-nav .menu-items .main-li .nav-link > i {
+  min-width: 45px;
+  font-size: calc(var(--link-f-size) + 4px);
+}
+
+/*ON {sidebar close} effect on main <li> name label*/
+.side-nav.close .main-li .link-name {
+  display: none;
+}
+.side-nav.close:hover .main-li .link-name {
+  display: inline-block;
+}
+
+/* +++++++ Sidebar Dropdown <li> CSS { Dropdown btn } */
+.side-nav .nav-ul .dropdown {
+  padding: 10px 22px;
+  list-style: none;
+  position: relative;
+}
+.side-nav .nav-ul .dropdown .dropdown-toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: var(--color-text-200);
+  font-size: var(--link-f-size);
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  transition: var(--transition-ease);
+}
+
+.side-nav .nav-ul .dropdown:hover .dropdown-toggle {
+  color: var(--color-text-100);
+}
+.side-nav .nav-ul .dropdown.active:hover .dropdown-toggle,
+.side-nav .nav-ul .dropdown.active .dropdown-toggle {
+  color: var(--color-primary);
+}
+.side-nav .nav-ul .dropdown.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background: var(--color-primary);
+}
+
+.side-nav .nav-ul .dropdown .dropdown-toggle i {
+  min-width: 45px;
+  font-size: calc(var(--link-f-size) + 6px);
+  display: flex;
+  align-items: center;
+}
+
+/* toggle <li> arow css */
+.side-nav .nav-ul .dropdown .dropdown-toggle::after {
+  margin-left: auto;
+}
+
+/*ON {sidebar close} effect on dropdown toggle <li>*/
+.side-nav.close .nav-ul .dropdown .dropdown-toggle .link-name,
+.side-nav.close .nav-ul .dropdown .dropdown-toggle::after {
+  display: none;
+}
+.side-nav.close:hover .nav-ul .dropdown .dropdown-toggle .link-name,
+.side-nav.close:hover .nav-ul .dropdown .dropdown-toggle::after {
+  display: inline-block;
+}
+
+/* +++++++ Sidebar Dropdown Menu items <ul> CSS 
+      { Dropdown list show on clicking {Dropdown btn} }*/
+.side-nav .nav-ul .dropdown .dropdown-menu {
+  position: relative !important;
+  transform: none !important;
+  /* margin-top: 10px !important; */
+  padding: 0;
+  border-radius: 0;
+  background-color: var(--base-lite);
+  border: none;
+  display: block;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  transition: all 0.5s linear;
+}
+
+.side-nav .nav-ul .dropdown .dropdown-menu.show {
+  opacity: 1;
+  height: auto;
+}
+
+/* Note: ".dropdown-item" is =>{ dropdown <ul> --> <li> --> a }  */
+
+.side-nav .nav-ul .dropdown .dropdown-menu .dropdown-item {
+  padding: 8px 0px;
+  text-decoration: none;
+  background: transparent;
+  transition: var(--transition-ease);
+}
+
+.side-nav .nav-ul .dropdown .dropdown-menu .dropdown-item > i {
+  min-width: 45px;
+  flex-shrink: 0;
+  font-size: 9px;
+  margin-left: 5px;
+}
+
+/* ++++++++++++ Dashboard main part CSS xx {excluding Right sidebar} xx  */
+.wrapper {
+  position: relative;
+  left: var(--sidenav-width);
+  background: var(--color-bg-100);
+  width: calc(100% - var(--sidenav-width));
+  transition: var(--transition-linear);
+}
+
+/*ON {sidebar close} effect on dashboard width*/
+.side-nav.close ~ .wrapper {
+  left: 73px;
+  width: calc(100% - 73px);
+}
+
+@media (max-width: 700px) {
+  .side-nav .nav-ul {
+    --link-f-size: 12px;
+  }
+}
+
+/*++++++++++++++  Top Header CSS  */
+.header {
+  position: fixed;
+  top: 0;
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 25px;
+  background: var(--base-lite);
+  z-index: 11;
+  border-bottom: 1px solid var(--color-border-100);
+  transition: var(--transition-linear);
+}
+
+.header .leftSid,
+.header .rightSid {
+  display: flex;
+  align-items: center;
+}
+
+/* +++++++++++++++++ Sidebar toggle button css */
+.header .sidebar-toggle {
+  font-size: 20px;
+  color: var(--color-text-100);
+  cursor: pointer;
+  min-width: 20px;
+}
+
+.header .rightSid {
+  display: flex;
+  gap: 15px;
+}
+
+/* ==> Logo */
+.header .leftSid .logo {
+  width: auto;
+  height: 40px;
+  margin-left: 30px;
+}
+
+/* ===> Top Btn */
+.header .top-btn {
+  font-size: 19px;
+  color: var(--color-text-200);
+  padding: 5px;
+  flex-shrink: 0;
+}
+
+/* =========> dark / light mode toggle btn */
+html .header .rightSid .mode-toggle .fa-sun {
+  display: inline-block;
+}
+html .header .rightSid .mode-toggle .fa-moon {
+  display: none;
+}
+html.dark .header .rightSid .mode-toggle .fa-sun {
+  display: none;
+}
+html.dark .header .rightSid .mode-toggle .fa-moon {
+  display: inline-block;
+}
+
+/* +++++++++++++++++++ Top Header right side Profile Dropdown css */
+.header .rightSid .profile .top-btn {
+  border: none;
+  background-color: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-100);
+}
+
+/* ****** global profile image CSS  */
+.profile-img {
+  width: 35px;
+  height: 35px;
+  object-fit: cover;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+/* Top Header PROFILE Dropdown Menu <ul>css */
+.header .rightSid .profile .dropdown-menu {
+  inset: 7px 0px auto auto !important;
+  padding: 0;
+  width: 243px;
+  border: 1px solid var(--color-border-100);
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  position: relative;
+  background: var(--base-lite);
+}
+
+/* top arow pointing profile btn  */
+.header .rightSid .profile .dropdown-menu::before {
+  content: "";
+  position: absolute;
+  top: -13px;
+  right: 5px;
+  width: 30px;
+  height: 30px;
+  background: var(--color-bg-100);
+  clip-path: polygon(50% 13%, 0% 100%, 100% 100%);
+}
+
+/* Top Header PROFILE Dropdown Menu <ul> => <li> {1st Chield} css */
+.header .rightSid .profile .dropdown-menu li:first-child {
+  padding: 11px 15px;
+  background: var(--color-bg-100);
+  border-radius: var(--radius-prim) var(--radius-prim) 0 0;
+  border: none !important;
+}
+
+.header .rightSid .profile .dropdown-menu li:first-child .Uname {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-hd-100);
+}
+
+.header .rightSid .profile .dropdown-menu li:first-child .Upost {
+  font-size: 12px;
+  color: var(--color-primary);
+  margin-bottom: 0;
+}
+
+/* Top Header PROFILE Dropdown Menu <ul> => <li> {excluding 1st Chield} css */
+.header .rightSid .profile .dropdown-menu .dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 9px 13px;
+  color: var(--color-text-200);
+  font-size: 12px;
+  font-weight: 600;
+  transition: var(--transition-linear);
+}
+
+.header .rightSid .profile .dropdown-menu .dropdown-item:hover {
+  background-color: transparent;
+  color: var(--color-primary);
+}
+
+.header .rightSid .profile .dropdown-menu .dropdown-item.active,
+.header .rightSid .profile .dropdown-menu .dropdown-item:focus {
+  background-color: transparent;
+  color: var(--color-primary);
+}
+
+.header .rightSid .profile .dropdown-menu .logOut,
+.header .rightSid .profile .dropdown-menu .logOut:hover {
+  color: var(--color-status-danger);
+}
+
+.header .rightSid .profile .dropdown-menu li:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header .rightSid .profile .dropdown-menu .dropdown-item i {
+  min-width: 30px;
+}
+
+/* Bashboard Main content part css */
+.wrapper .dash-content {
+  padding: 20px;
+}
+
+@media (max-width: 1000px) {
+  .side-nav {
+    left: -300px;
+  }
+  .side-nav.close {
+    left: 0;
+    width: var(--sidenav-width);
+  }
+  .side-nav .menu-items {
+    height: 100%;
+  }
+
+  .wrapper {
+    left: 0;
+    width: 100%;
+  }
+
+  .side-nav.close ~ .wrapper {
+    left: 0;
+    width: 100%;
+  }
+
+  /*ON {sidebar close} effect on main <li> name label*/
+  .side-nav.close .main-li .link-name {
+    display: inline-block;
+  }
+
+  /*ON {sidebar close} effect on dropdown toggle <li>*/
+  .side-nav.close .nav-ul .dropdown .dropdown-toggle .link-name,
+  .side-nav.close .nav-ul .dropdown .dropdown-toggle::after {
+    display: inline-block;
+  }
+
+  /*ON {sidebar close} effect on label <li>*/
+  .side-nav.close .nav-ul .label-li {
+    display: block;
+  }
+}
+
+@media (max-width: 800px) {
+  .header .rightSid .profile .top-btn {
+    font-size: 13px;
+  }
+
+  /* ****** global profile image CSS  */
+  .profile-img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .header .rightSid .profile .dropdown-menu {
+    width: 200px;
+  }
+
+  .header .rightSid .profile .top-btn span {
+    display: none;
+  }
+  /* hide dropdown arrow  */
+  .header .rightSid .profile .top-btn::after {
+    display: none;
+  }
+
+  .header .leftSid .logo {
+    height: 30px;
+  }
+}
+
+/* ======================= */
+.form-tabs {
+  padding: 0.6rem;
+  border-radius: var(--radius-prim);
+  background: var(--color-bg-100);
+  border: 1px solid var(--color-border-100);
+  margin-bottom: 1.5rem;
+}
+
+.create-event-form-box {
+  padding: 0.7rem;
+  border-radius: var(--radius-prim);
+  border: 1px solid var(--color-border-100);
+}
+
+.label-hd {
+  margin-bottom: 0 !important;
+  margin-left: 0.3rem;
+  margin-top: -1.5rem;
+  padding: 0.3rem;
+  background: var(--base-lite);
+  display: inline-block;
+  width: fit-content;
+}
