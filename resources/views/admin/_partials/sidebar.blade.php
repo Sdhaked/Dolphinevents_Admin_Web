@@ -42,6 +42,7 @@
     $canDiscountCouponsView = $canSeeSidebar(['discount-coupons-view-discount-coupons', 'discount-coupons-manage-discount-coupons']);
     $canDiscountCouponsCreate = $canSeeSidebar(['discount-coupons-create-discount-coupons', 'discount-coupons-manage-discount-coupons']);
     $canDiscountCoupons = $canDiscountCouponsView || $canDiscountCouponsCreate;
+    $canEventServices = $canSeeSidebar(['event-services-view-event-services', 'event-services-manage-event-services', 'ticket-types-manage-ticket-types']);
     $canContestents = $canSeeSidebar(['contestents-view-contestents', 'contestents-manage-contestents']);
     $canSponsors = $canSeeSidebar(['sponsors-view-sponsors', 'sponsors-manage-sponsors']);
     $canEventInfoSlider = $canSeeSidebar(['event-info-slider-view-event-info-slider', 'event-info-slider-manage-event-info-slider']);
@@ -69,7 +70,7 @@
     $canMainInfoSlider = $canSeeSidebar(['main-info-slider-view-main-info-slider', 'main-info-slider-manage-main-info-slider']);
     $canMainGallery = $canSeeSidebar(['main-gallery-view-main-gallery', 'main-gallery-manage-main-gallery']);
 
-    $canShowEventTicketGroup = $hasEvents && ($canTicketCounter || $canTicketSold || $canTicketFailed || $canTicketTypes || $canDiscountCoupons);
+    $canShowEventTicketGroup = $hasEvents && ($canTicketCounter || $canTicketSold || $canTicketFailed || $canTicketTypes || $canDiscountCoupons || $canEventServices);
     $canShowEventOtherGroup = $hasEvents && ($canContestents || $canSponsors || $canEventInfoSlider || $canEventGallery || $canEventSupport);
     $canShowSiteContentGroup = $canMasterControl || $canPageContent || $canMainHeroSlider || $canMainInfoSlider || $canMainGallery;
 @endphp
@@ -277,6 +278,15 @@
                                     </li>
                                 @endif
                             </ul>
+                        </li>
+                    @endif
+
+                    @if ($canEventServices)
+                        <li class="main-li">
+                            <a href="{{ route('admin.event.services.index') }}" class="nav-link navJS">
+                                <i class="fa-solid fa-bag-shopping"></i>
+                                <span class="link-name">Event Services</span>
+                            </a>
                         </li>
                     @endif
                 @endif

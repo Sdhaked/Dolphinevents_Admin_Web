@@ -53,7 +53,7 @@
                             </tr>
                             <tr>
                                 <th>Event</th>
-                                <td>{{ $coupon->event->title ?? 'VIP SEATING' }}</td>
+                                <td>{{ $coupon->event->title ?? 'Dolphinevent' }}</td>
                             </tr>
                             <tr>
                                 <th>Associate Name</th>

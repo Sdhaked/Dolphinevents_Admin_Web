@@ -29,6 +29,7 @@ class TicketType extends Model
         'enable_extra_charges',
         'extra_charges_label',
         'extra_charges_value',
+        'enable_age_group',
         'created_by',
         'updated_by',
     ];
@@ -37,6 +38,7 @@ class TicketType extends Model
         'enable_bulk_discount' => 'boolean',
         'enable_tax' => 'boolean',
         'enable_extra_charges' => 'boolean',
+        'enable_age_group' => 'boolean',
     ];
 
 
@@ -55,7 +57,11 @@ class TicketType extends Model
     public function getAvailableTicketsAttribute(): int
     {
         $soldCount = \App\Models\TicketCounter::where('ticket_type_id', $this->id)
-            ->whereIn('booking_status', [TicketCounter::STATUS_CONFIRMED, TicketCounter::STATUS_PENDING_VERIFICATION])
+            ->whereIn('booking_status', [
+                TicketCounter::STATUS_CONFIRMED,
+                TicketCounter::STATUS_PENDING_VERIFICATION,
+                TicketCounter::STATUS_PENDING_PAYMENT,
+            ])
             ->sum('qty');
         return $this->total_tickets - $soldCount;
     }
@@ -70,7 +76,11 @@ class TicketType extends Model
     public function getSoldCountAttribute(): int
     {
         return \App\Models\TicketCounter::where('ticket_type_id', $this->id)
-            ->whereIn('booking_status', [TicketCounter::STATUS_CONFIRMED, TicketCounter::STATUS_PENDING_VERIFICATION])
+            ->whereIn('booking_status', [
+                TicketCounter::STATUS_CONFIRMED,
+                TicketCounter::STATUS_PENDING_VERIFICATION,
+                TicketCounter::STATUS_PENDING_PAYMENT,
+            ])
             ->sum('qty');
     }
 
@@ -86,6 +96,11 @@ class TicketType extends Model
     {
         return $this->hasMany(\App\Models\BulkDiscount::class, 'ticket_type_id', 'id')
                     ->orderBy('min_order_qty', 'asc');
+    }
+
+    public function ageGroups(): HasMany
+    {
+        return $this->hasMany(TicketTypeAgeGroup::class)->orderBy('order_index');
     }
 
     public function creator()

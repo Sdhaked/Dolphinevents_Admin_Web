@@ -497,7 +497,7 @@
                 <div class="swiper-slide">
                     <video style="display:block;  width:100%; height:auto" loop plays-inline controls preload="auto"
                         poster="{{ asset('storage/' . $event?->thumbnail) }}"
-                        title="Event video for [event title] organized by [bookmyseats]">
+                        title="Event video for {{ $event?->title ?? 'Dolphinevent' }}">
                         <source src="{{ asset('storage/' . $event?->featured_video) }}" type="video/mp4">
                     </video>
                 </div>

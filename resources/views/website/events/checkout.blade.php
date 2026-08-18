@@ -149,6 +149,32 @@
                                 </div> --}}
                                 {{-- Hidden input to keep JS logic for billing working --}}
                                 <input type="hidden" id="quantity" value="{{ $checkout['quantity'] }}">
+                            @elseif(!empty($ageGroups) && $ageGroups->count())
+                                <input type="hidden" id="quantity" value="{{ $checkout['quantity'] }}">
+                                <label>Ticket Age Groups *</label>
+                                <div class="grid-1 gap-card">
+                                    @foreach($ageGroups as $ageGroup)
+                                        <div class="style-box">
+                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-card">
+                                                <div>
+                                                    <h6 class="hd-sm mb-1">{{ $ageGroup->label }}</h6>
+                                                    <p class="mb-0">{{ $event->currency_symbol }}{{ number_format((float) $ageGroup->price, 2) }}/- per ticket</p>
+                                                </div>
+                                                <div class="select-box" style="min-width: 160px;">
+                                                    <i class="fa-solid fa-angle-down arrow-i"></i>
+                                                    <select class="age-group-qty" data-id="{{ $ageGroup->id }}"
+                                                        data-label="{{ $ageGroup->label }}"
+                                                        data-compulsory="{{ $ageGroup->is_compulsory ? 1 : 0 }}">
+                                                        @for($i = $ageGroup->is_compulsory ? 1 : 0; $i <= min((int) $ageGroup->max_quantity_per_booking, 20); $i++)
+                                                            <option value="{{ $i }}">{{ $i }}</option>
+                                                        @endfor
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div class="invalid-feedback" data-feedback-for="quantity"></div>
                             @else
                                 <label for="qty">Ticket Qty *</label>
                                 <div class="select-box">
@@ -160,6 +186,38 @@
                                 <div class="invalid-feedback" data-feedback-for="quantity"></div>
                             @endif
                             </div>
+
+                            @if(!empty($eventServices) && $eventServices->count())
+                                <div data-aos="fade-up">
+                                    <label>Additional Services</label>
+                                    <div class="grid-1 gap-card">
+                                        @foreach($eventServices as $service)
+                                            <div class="style-box">
+                                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-card">
+                                                    <div>
+                                                        <h6 class="hd-sm mb-1">{{ $service->name }}</h6>
+                                                        <p class="mb-0">
+                                                            {{ $event->currency_symbol }}{{ number_format((float) $service->price, 2) }}/-
+                                                            @if($service->is_mandatory)
+                                                                <span class="tag">Mandatory</span>
+                                                            @endif
+                                                        </p>
+                                                    </div>
+                                                    <div class="select-box" style="min-width: 160px;">
+                                                        <i class="fa-solid fa-angle-down arrow-i"></i>
+                                                        <select class="event-service-qty" data-id="{{ $service->id }}"
+                                                            data-mandatory="{{ $service->is_mandatory ? 1 : 0 }}">
+                                                            @for($i = $service->is_mandatory ? 1 : 0; $i <= min((int) $service->max_buy_limit, 20); $i++)
+                                                                <option value="{{ $i }}">{{ $i }}</option>
+                                                            @endfor
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
 
                             <!-- Name -->
                             <div data-aos="fade-up">
@@ -336,6 +394,7 @@
 <script>
     window.CHECKOUT_TOKEN = "{{ $checkout['token'] }}";
     window.checkoutSeats = @json($checkout['selected_seats'] ?? []);
+    window.checkoutAgeGroupsEnabled = @json(!empty($ageGroups) && $ageGroups->count() > 0);
 </script>
 
 <script>
@@ -360,6 +419,39 @@ const confirmRemoveCheckoutSeatBtn = document.getElementById('confirmRemoveCheck
 const checkoutAlertModalElement = document.getElementById('checkoutAlertModal');
 const checkoutAlertTitle = document.getElementById('checkoutAlertTitle');
 const checkoutAlertMessage = document.getElementById('checkoutAlertMessage');
+
+function collectAgeGroupItems() {
+    return Array.from(document.querySelectorAll('.age-group-qty'))
+        .map((select) => ({
+            id: Number(select.dataset.id),
+            quantity: Number(select.value || 0),
+        }))
+        .filter((item) => item.id && item.quantity > 0);
+}
+
+function collectServiceItems() {
+    return Array.from(document.querySelectorAll('.event-service-qty'))
+        .map((select) => ({
+            id: Number(select.dataset.id),
+            quantity: Number(select.value || 0),
+        }))
+        .filter((item) => item.id && item.quantity > 0);
+}
+
+function resolveCheckoutQuantity() {
+    const ageGroupItems = collectAgeGroupItems();
+    if (window.checkoutAgeGroupsEnabled && ageGroupItems.length) {
+        const total = ageGroupItems.reduce((sum, item) => sum + item.quantity, 0);
+        const quantityInput = document.getElementById('quantity');
+        if (quantityInput) quantityInput.value = total;
+        currentQuantity = total;
+        return total;
+    }
+
+    const quantity = Number(document.getElementById('quantity')?.value || 0);
+    currentQuantity = quantity;
+    return quantity;
+}
 
 function getCheckoutValidationMessage(field) {
     const messages = {
@@ -455,6 +547,12 @@ function validateCheckoutForm() {
             firstInvalidField = field;
         }
     });
+
+    if (window.checkoutAgeGroupsEnabled && resolveCheckoutQuantity() <= 0) {
+        const quantityField = document.getElementById('quantity');
+        showCheckoutFieldError(quantityField, 'Please select at least one age-group ticket.');
+        firstInvalidField = firstInvalidField || quantityField;
+    }
 
     if (firstInvalidField) {
         firstInvalidField.focus();
@@ -687,7 +785,7 @@ function updateSeatsSectionUI() {
 // Start stripe checkout
 function startCheckout() {
     //Ticket qty
-    const qty = document.getElementById('quantity').value;
+    const qty = resolveCheckoutQuantity();
 
     // Collect Car Registration Numbers
     const carNumbers = [];
@@ -710,7 +808,9 @@ function startCheckout() {
         quantity: qty,         
         coupon_code: couponCode,
         parking_slots: activeSlotsCount || 0,
-        car_details: carNumbers
+        car_details: carNumbers,
+        service_items: collectServiceItems(),
+        age_group_items: collectAgeGroupItems()
     };
     payload.phone_prefix = document.querySelector('select[name="phone_prefix"]')?.value || '';
     fetchWithCheckoutCsrf("{{ route('website.events.checkout.stripe') }}", {
@@ -826,6 +926,9 @@ function fetchAvailableQuantity() {
 
 function updateQuantityOptions(available) {
     const select = document.getElementById('quantity');
+    if (window.checkoutAgeGroupsEnabled || select?.type === 'hidden') {
+        return;
+    }
     const prev = select.value;
 
     select.innerHTML = '<option value="">Select Quantity</option>';
@@ -845,8 +948,7 @@ function updateQuantityOptions(available) {
 }
 
 function handleQuantityChange() {
-    const qtyInput = document.getElementById("quantity");
-    const qty = Number(qtyInput?.value);
+    const qty = resolveCheckoutQuantity();
 
     // Invalid or zero quantity → reset & stop
     if (!Number.isInteger(qty) || qty <= 0) {
@@ -875,6 +977,13 @@ document
     .getElementById('quantity')
     .addEventListener('change', handleQuantityChange);
 
+document.querySelectorAll('.age-group-qty, .event-service-qty').forEach((field) => {
+    field.addEventListener('change', () => {
+        resolveCheckoutQuantity();
+        checkBulkDiscount();
+    });
+});
+
 /* ===============================
    BULK DISCOUNT
 ================================ */
@@ -885,7 +994,8 @@ function checkBulkDiscount() {
         body: JSON.stringify({
             event_id: EVENT_ID,
             ticket_type_id: TICKET_TYPE_ID,
-            quantity: currentQuantity
+            quantity: resolveCheckoutQuantity(),
+            age_group_items: collectAgeGroupItems()
         })
     })
     .then(r => r.json())
@@ -1028,7 +1138,9 @@ function calculateBill() {
         quantity: currentQuantity,
         coupon_code: appliedCoupon?.coupon_code ?? null,
         parking_slots: activeSlotsCount || 0,
-        car_details: carNumbers
+        car_details: carNumbers,
+        service_items: collectServiceItems(),
+        age_group_items: collectAgeGroupItems()
     };
     
     fetchWithCheckoutCsrf(`${API_BASE}/calculate-bill`, {
@@ -1195,6 +1307,17 @@ function renderBill(d) {
                 </th>
                 <td>${d.parking_total}/-</td>
             </tr>` : ''}
+
+            ${Array.isArray(d.service_items) && d.service_items.length ? `
+            <tr>
+                <th colspan="2"><h6 style="color: blue">Additional Services</h6></th>
+            </tr>
+            ${d.service_items.map(service => `
+                <tr>
+                    <th>${service.name}<p>${service.price}/- <i class="fa-solid fa-xmark i-mr i-ml"></i> ${service.quantity}</p></th>
+                    <td>${service.total}/-</td>
+                </tr>
+            `).join('')}` : ''}
 
             ${d.bulk_discount_applied ? `
             <tr style="color: green;">

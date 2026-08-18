@@ -97,6 +97,22 @@
                             <h6>Ticket Type</h6>
                             <p style="color: #dc2926;">{{ $ticketType->title }}</p>
                         </div>
+                        @if(($booking->ageGroups?->count() ?? 0) > 0)
+                        <div class="details">
+                            <h6>Age Group Tickets</h6>
+                            @foreach($booking->ageGroups as $ageGroup)
+                                <p>{{ $ageGroup->label }}: {{ $ageGroup->quantity }}</p>
+                            @endforeach
+                        </div>
+                        @endif
+                        @if(($booking->services?->count() ?? 0) > 0)
+                        <div class="details">
+                            <h6>Event Services</h6>
+                            @foreach($booking->services as $service)
+                                <p>{{ $service->service_name }}: {{ $service->quantity }}</p>
+                            @endforeach
+                        </div>
+                        @endif
                         @if($seatLabel)
                         <div class="details">
                             <h6>Seat Assignment</h6>

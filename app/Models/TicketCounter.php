@@ -13,6 +13,7 @@ class TicketCounter extends Model
     use SoftDeletes;
 
     public const STATUS_PENDING_VERIFICATION = 'pending_verification';
+    public const STATUS_PENDING_PAYMENT = 'pending_payment';
     public const STATUS_CONFIRMED = 'confirmed';
     public const STATUS_FAILED = 'failed';
     public const REFUND_NOT_REQUIRED = 'not_required';
@@ -170,6 +171,16 @@ class TicketCounter extends Model
         return $this->hasMany(BookedTicket::class, 'ticket_counter_id');
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(TicketCounterService::class, 'ticket_counter_id');
+    }
+
+    public function ageGroups(): HasMany
+    {
+        return $this->hasMany(TicketCounterAgeGroup::class, 'ticket_counter_id');
+    }
+
     public function contestentVotes(): HasMany
     {
         return $this->hasMany(EventContestentVote::class, 'ticket_counter_id');
@@ -199,6 +210,7 @@ class TicketCounter extends Model
     {
         return match ($this->booking_status) {
             self::STATUS_PENDING_VERIFICATION => 'Pending Verification',
+            self::STATUS_PENDING_PAYMENT => 'Pending Payment',
             self::STATUS_FAILED => 'Failed',
             self::STATUS_CONFIRMED => 'Confirmed',
             default => ucfirst((string) $this->booking_status),

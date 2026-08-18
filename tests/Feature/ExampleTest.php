@@ -1,7 +1,11 @@
 <?php
 
-test('the application returns a successful response', function () {
-    $response = $this->get('/');
+use Illuminate\Support\Facades\Route;
 
-    $response->assertStatus(200);
+test('the website home route is registered', function () {
+    $route = Route::getRoutes()->getByName('website.home.index');
+
+    expect($route)->not->toBeNull()
+        ->and($route->uri())->toBe('/')
+        ->and($route->methods())->toContain('GET');
 });

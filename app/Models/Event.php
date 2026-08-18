@@ -142,6 +142,11 @@ class Event extends Model
         return $this->hasMany(TicketType::class);
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(EventService::class);
+    }
+
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class);

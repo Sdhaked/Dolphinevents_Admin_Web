@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\LoginOtpMail;
 use App\Http\Requests\LoginRequest;
 use App\Models\User;
 use App\Models\Event;
@@ -23,7 +24,13 @@ class AuthController extends Controller
      */
     public function login()
     {
-        return view('admin.auth.login');
+        $otpSession = $this->adminLoginOtpSession();
+
+        return view('admin.auth.login', [
+            'showOtpForm' => (bool) $otpSession,
+            'otpEmail' => $otpSession['email'] ?? old('email'),
+            'resendWaitSeconds' => $this->adminLoginOtpWaitSeconds(),
+        ]);
     }
 
     /**
@@ -47,23 +54,88 @@ class AuthController extends Controller
      */
     public function loginPost(LoginRequest $request)
     {
-        $credentials = $request->only('email', 'password');
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
+        $user = User::where('email', $request->email)->first();
 
-            $event = Event::latest()->first();
-            if ($event) {
-                $request->session()->put('active_event_id', $event->id);
-            } else {
-                $request->session()->forget('active_event_id');
-            }
-
-            return redirect()->intended('admin')->with('success', 'Welcome back!');
+        if (!$user) {
+            return back()->withErrors([
+                'email' => 'No admin account was found for this email.',
+            ])->withInput($request->only('email'));
         }
 
-        return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
-        ])->withInput($request->only('email'));
+        $this->sendAdminLoginOtp($user);
+
+        return back()
+            ->withInput($request->only('email'))
+            ->with('success', 'OTP has been sent to your email.');
+    }
+
+    public function verifyLoginOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'digits:6'],
+        ]);
+
+        $otpSession = $this->adminLoginOtpSession();
+
+        if (!$otpSession || ($otpSession['email'] ?? null) !== $validated['email']) {
+            return redirect()->route('login')
+                ->withErrors(['otp' => 'OTP session expired. Please request a new OTP.'])
+                ->withInput($request->only('email'));
+        }
+
+        if (!Hash::check($validated['otp'], $otpSession['otp_hash'] ?? '')) {
+            return back()
+                ->withErrors(['otp' => 'Invalid OTP. Please check and try again.'])
+                ->withInput($request->only('email'));
+        }
+
+        $user = User::find($otpSession['user_id'] ?? null);
+
+        if (!$user || $user->email !== $validated['email']) {
+            $request->session()->forget('admin_login_otp');
+
+            return redirect()->route('login')
+                ->withErrors(['email' => 'Admin account not found.']);
+        }
+
+        Auth::login($user);
+        $request->session()->forget('admin_login_otp');
+        $request->session()->regenerate();
+        $this->setDefaultActiveEvent($request);
+
+        return redirect()->intended('admin')->with('success', 'Welcome back!');
+    }
+
+    public function resendLoginOtp(Request $request)
+    {
+        $otpSession = $this->adminLoginOtpSession();
+
+        if (!$otpSession) {
+            return redirect()->route('login')
+                ->withErrors(['email' => 'OTP session expired. Please request a new OTP.']);
+        }
+
+        $waitSeconds = $this->adminLoginOtpWaitSeconds();
+        if ($waitSeconds > 0) {
+            return back()
+                ->withInput(['email' => $otpSession['email'] ?? null])
+                ->with('warning', 'Please wait ' . $waitSeconds . ' seconds before resending OTP.');
+        }
+
+        $user = User::find($otpSession['user_id'] ?? null);
+        if (!$user) {
+            $request->session()->forget('admin_login_otp');
+
+            return redirect()->route('login')
+                ->withErrors(['email' => 'Admin account not found.']);
+        }
+
+        $this->sendAdminLoginOtp($user);
+
+        return back()
+            ->withInput(['email' => $user->email])
+            ->with('success', 'A new OTP has been sent to your email.');
     }
 
     /**
@@ -76,6 +148,62 @@ class AuthController extends Controller
         request()->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    private function sendAdminLoginOtp(User $user): void
+    {
+        $otp = (string) random_int(100000, 999999);
+
+        session()->put('admin_login_otp', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'otp_hash' => Hash::make($otp),
+            'expires_at' => now()->addMinutes(15)->toIso8601String(),
+            'resend_available_at' => now()->addSeconds(60)->toIso8601String(),
+        ]);
+
+        Mail::to($user->email)->send(new LoginOtpMail($otp, $user));
+    }
+
+    private function adminLoginOtpSession(): ?array
+    {
+        $otpSession = session('admin_login_otp');
+
+        if (!is_array($otpSession) || empty($otpSession['expires_at'])) {
+            return null;
+        }
+
+        if (now()->gt(Carbon::parse($otpSession['expires_at']))) {
+            session()->forget('admin_login_otp');
+            return null;
+        }
+
+        return $otpSession;
+    }
+
+    private function adminLoginOtpWaitSeconds(): int
+    {
+        $otpSession = $this->adminLoginOtpSession();
+        $resendAvailableAt = $otpSession['resend_available_at'] ?? null;
+
+        if (!$resendAvailableAt) {
+            return 0;
+        }
+
+        $availableAt = Carbon::parse($resendAvailableAt);
+
+        return $availableAt->isFuture() ? (int) now()->diffInSeconds($availableAt) : 0;
+    }
+
+    private function setDefaultActiveEvent(Request $request): void
+    {
+        $event = Event::latest()->first();
+        if ($event) {
+            $request->session()->put('active_event_id', $event->id);
+            return;
+        }
+
+        $request->session()->forget('active_event_id');
     }
 
     /**

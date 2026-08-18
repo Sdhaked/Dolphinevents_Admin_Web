@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\TicketCheckerController;
 use App\Http\Controllers\Admin\TicketTypeController;
 use App\Http\Controllers\Admin\TicketSoldController;
 use App\Http\Controllers\Admin\DiscountCouponController;
+use App\Http\Controllers\Admin\EventServiceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Website\AboutController as WebsiteAboutController;
 use App\Http\Controllers\Website\BaseController;
@@ -51,7 +52,8 @@ Route::prefix('admin')->controller(AuthController::class)->middleware('guest')->
     Route::get('/set-new-password', 'setNewPassword')->name('set.new.password');
 
     Route::post('/login', 'loginPost')->name('login.post');
-    Route::post('/logout', 'logoutPost')->name('logout');
+    Route::post('/login/verify-otp', 'verifyLoginOtp')->name('login.verify.otp');
+    Route::post('/login/resend-otp', 'resendLoginOtp')->name('login.resend.otp');
 
     Route::post('/forgot-password', 'sendResetLink')->name('password.email');
     Route::post('/reset-password', 'reset')->name('password.reset');
@@ -172,6 +174,13 @@ Route::prefix('admin')->middleware(['auth', SetActiveEvent::class])->group(funct
         Route::get('/edit/{id}', 'edit')->name('admin.discount.coupons.edit');
         Route::post('/update/{id}', 'update')->name('admin.discount.coupons.update');
         Route::delete('/destroy/{id}', 'destroy')->name('admin.discount.coupons.destroy');
+    });
+
+    Route::controller(EventServiceController::class)->prefix('/event-services')->group(function () {
+        Route::get('/', 'index')->name('admin.event.services.index');
+        Route::post('/', 'store')->name('admin.event.services.store');
+        Route::put('/{eventService}', 'update')->name('admin.event.services.update');
+        Route::delete('/{eventService}', 'destroy')->name('admin.event.services.destroy');
     });
 
     /**
@@ -456,6 +465,12 @@ Route::controller(WebsiteEventController::class)->prefix('events')->group(functi
 
     Route::get('checkout/cancel', 'stripeCancel')->name('website.events.checkout.cancel');
 
+    Route::get('checkout/prepay-verify/{booking_id}', 'prePaymentEmailVerification')->name('website.events.checkout.prepay.verify');
+    Route::post('checkout/prepay-verify/{booking_id}', 'verifyPrePaymentOtp')->name('website.events.checkout.prepay.verify_otp');
+    Route::post('checkout/prepay-resend-otp/{booking_id}', 'resendPrePaymentOtp')->name('website.events.checkout.prepay.resend_otp');
+    Route::post('checkout/prepay-change-email/{booking_id}', 'changePrePaymentEmail')->name('website.events.checkout.prepay.change_email');
+    Route::get('checkout/payment/{booking_id}', 'startVerifiedStripeCheckout')->name('website.events.checkout.payment');
+
     Route::get('checkout/verify/{booking_id}', 'checkoutEmailVerification')->name('website.events.checkout.verify');
     Route::post('checkout/verify/{booking_id}', 'verifyCheckoutOtp')->name('website.events.checkout.verify_otp');
     Route::post('checkout/resend-otp/{booking_id}', 'resendCheckoutOtp')->name('website.events.checkout.resend_otp');
@@ -481,9 +496,6 @@ Route::controller(WebsiteEventController::class)->prefix('events')->group(functi
     Route::get('voting/{event:slug}', 'eventVoting')->name('website.events.voting.show');
     Route::post('voting/{event:slug}/submit', 'submitVoting')->name('website.events.voting.submit');
 
-    // event tickets seat selection booking system
-    Route::get('event-seats/{event:slug}/{ticket_type_id?}', 'event_seats')->name('website.events.event_seats');
-    
     // Seat removal during checkout hold
     Route::post('checkout/remove-seat', 'removeSeatFromHold')->name('website.events.checkout.remove_seat');
 

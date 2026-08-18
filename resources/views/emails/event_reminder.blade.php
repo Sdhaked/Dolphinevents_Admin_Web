@@ -9,7 +9,7 @@
         <tr>
             <td>
                 <div style="position: relative; height: 200px; background: linear-gradient(90deg, #2e2e2ecb, #58565691), url({{ url('website/images/event-reminder.jpg') }}); background-size: cover; background-position: center; background-repeat: no-repeat;">
-                    <img src="{{ url('website/images/logo.svg') }}" alt="BookMySeats Logo"
+                    <img src="{{ url('website/images/logo.svg') }}" alt="Dolphinevent Logo"
                         style="max-width:240px; width:95%; height:auto; position:absolute; z-index:2; top:50%; left:50%; transform:translate(-50%, -50%);">
                 </div>
             </td>
@@ -75,7 +75,7 @@
         <tr>
             <td style="padding:24px 32px; border-top:1px solid #333; text-align:center; color:#aaa;">
                 <p>With warm regards,</p>
-                <p style="font-weight:600; color:#fff;">Team BookMySeats</p>
+                <p style="font-weight:600; color:#fff;">Team Dolphinevent</p>
             </td>
         </tr>
     </table>

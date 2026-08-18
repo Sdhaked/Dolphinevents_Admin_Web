@@ -1,5 +1,5 @@
 <div>
-    <h2>Checker's Account Verification Mail</h2>
+    <h2>Account Verification Mail</h2>
     <div>
         <b>Name:</b> {{ $checker->name ?? 'User' }}<br>
         <b>Email:</b> {{ $checker->email ?? 'N/A' }}<br>

@@ -5,10 +5,10 @@
 @section('body')
     <section class="auth-wrapper">
         <div style="width:100%; max-width: 30rem;">
-            <form class="style-box auth-box needs-validation" id="loginForm" action="{{ route('login.post') }}" method="POST"
+            <form class="style-box auth-box needs-validation" id="loginForm" action="{{ $showOtpForm ? route('login.verify.otp') : route('login.post') }}" method="POST"
                   novalidate>
                 @csrf
-                <img src="{{ asset('images/logo-w.svg') }}" alt="[company name] logo" class="logo-img"/>
+                <img src="{{ asset('images/logo-w.svg') }}" alt="Dolphinevent logo" class="logo-img"/>
                 <!-- <h1 class="hd-xl text-center my-2">Login</h1> -->
 
                 {{-- Success Message --}}
@@ -18,31 +18,54 @@
                     </div>
                 @endif
 
-                <div class="form-floating mb-1">
-                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" id="myemail" value="{{ old('email') }}"
-                           required>
-                    <label for="myemail">Email</label>
-                </div>
-
-                <div class="passBox mb-1">
-                    <div class="form-floating">
-                        <input type="password" name="password" class="form-control" id="dg5" required>
-                        <label for="dg5">Password</label>
+                @if (session('warning'))
+                    <div style="color: #b7791f; margin-bottom: 10px;">
+                        {{ session('warning') }}
                     </div>
-                    <button type="button" class="input-group-text pass-eye">
-                        <i class="fa-solid fa-eye-slash"></i>
-                    </button>
-                </div>
+                @endif
 
-                <button type="submit" id="loginBtn" class="btn-md btn-prim">Login</button>
+                @if ($errors->any())
+                    <div style="color: #dc2626; margin-bottom: 10px;">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
+                @if ($showOtpForm)
+                    <input type="hidden" name="email" value="{{ $otpEmail }}">
+
+                    <div class="mb-1">
+                        <p style="font-size: 0.85rem; margin-bottom: 0.4rem;">
+                            OTP sent to <strong>{{ $otpEmail }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="form-floating mb-1">
+                        <input type="text" name="otp" class="form-control @error('otp') is-invalid @enderror" id="adminOtp"
+                               inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required>
+                        <label for="adminOtp">Enter OTP</label>
+                    </div>
+                @else
+                    <div class="form-floating mb-1">
+                        <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" id="myemail" value="{{ old('email', $otpEmail) }}"
+                               required>
+                        <label for="myemail">Email</label>
+                    </div>
+                @endif
+
+                <button type="submit" id="loginBtn" class="btn-md btn-prim">{{ $showOtpForm ? 'Verify OTP' : 'Send OTP' }}</button>
                 <button class="btn-md btn-prim d-none" id="loginBtnLoader" type="button" disabled>
                     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
                     <span role="status">Loading...</span>
                 </button>
             </form>
-            <div class="mt-3">
-                <p class="text-end"><a href="{{ route('forgot.password') }}">Forgot Password?</a></p>
-            </div>
+            @if ($showOtpForm)
+                <form action="{{ route('login.resend.otp') }}" method="POST" class="mt-3 text-end">
+                    @csrf
+                    <button type="submit" class="btn-link" @if($resendWaitSeconds > 0) disabled @endif>
+                        Resend OTP@if($resendWaitSeconds > 0) ({{ $resendWaitSeconds }}s)@endif
+                    </button>
+                </form>
+            @endif
         </div>
     </section>
     <script>

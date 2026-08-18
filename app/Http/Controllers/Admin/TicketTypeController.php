@@ -8,6 +8,7 @@ use App\Models\VenueLayout;
 use App\Models\Event;
 use App\Models\DiscountCoupon;
 use App\Models\BulkDiscount;
+use App\Models\TicketTypeAgeGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -35,6 +36,51 @@ class TicketTypeController extends Controller
             'extra_charges_label' => 'nullable|string|max:100',
             'extra_charges_value' => 'nullable|numeric|min:0|max:100',
         ]);
+    }
+
+    private function ageGroupTotal(Request $request): int
+    {
+        if (!$request->has('enable_age_group')) {
+            return 0;
+        }
+
+        return collect($request->input('age_group_total_tickets', []))
+            ->map(fn ($quantity) => max(0, (int) $quantity))
+            ->sum();
+    }
+
+    private function syncAgeGroups(TicketType $ticket, Request $request): void
+    {
+        $ticket->ageGroups()->delete();
+
+        if (!$request->has('enable_age_group')) {
+            return;
+        }
+
+        $labels = $request->input('age_group_label', []);
+        $prices = $request->input('age_group_price', []);
+        $totals = $request->input('age_group_total_tickets', []);
+        $maxQty = $request->input('age_group_max_quantity', []);
+        $compulsory = array_map('strval', (array) $request->input('age_group_compulsory', []));
+
+        foreach ($labels as $index => $label) {
+            $label = trim((string) $label);
+            $totalTickets = max(0, (int) ($totals[$index] ?? 0));
+
+            if ($label === '' || $totalTickets <= 0) {
+                continue;
+            }
+
+            TicketTypeAgeGroup::create([
+                'ticket_type_id' => $ticket->id,
+                'label' => $label,
+                'price' => max(0, (float) ($prices[$index] ?? $ticket->ticket_price)),
+                'total_tickets' => $totalTickets,
+                'max_quantity_per_booking' => max(1, (int) ($maxQty[$index] ?? 20)),
+                'is_compulsory' => in_array((string) $index, $compulsory, true),
+                'order_index' => $index,
+            ]);
+        }
     }
 
     /**
@@ -116,11 +162,14 @@ class TicketTypeController extends Controller
         // Capture selected seats and calculate total count
         $selectedSeats = $request->input('selected_seats', []);
         $totalTicketsCount = count($selectedSeats);
+        $ageGroupTotal = $this->ageGroupTotal($request);
 
         // Ensure event_id and new fields are provided
         $validated['event_id'] = $request->input('event_id');
         // If no seats are selected (simple ticket), we use the request's total_tickets or default
-        $validated['total_tickets'] = $totalTicketsCount > 0 ? $totalTicketsCount : ($request->input('total_tickets') ?? 0);
+        $validated['total_tickets'] = $ageGroupTotal > 0
+            ? $ageGroupTotal
+            : ($totalTicketsCount > 0 ? $totalTicketsCount : ($request->input('total_tickets') ?? 0));
         $validated['ticket_type_color'] = $request->input('ticket_type_color');
 
         // Handle featured image upload
@@ -132,6 +181,7 @@ class TicketTypeController extends Controller
         $validated['enable_bulk_discount'] = $request->has('enable_bulk_discount');
         $validated['enable_tax'] = $request->has('enable_tax');
         $validated['enable_extra_charges'] = $request->has('enable_extra_charges');
+        $validated['enable_age_group'] = $request->has('enable_age_group') && $ageGroupTotal > 0;
         $validated['created_by'] = Auth::id();
         $validated['updated_by'] = Auth::id();
 
@@ -139,6 +189,7 @@ class TicketTypeController extends Controller
          * 1) CREATE TICKET TYPE FIRST
          * ------------------------------------------------ */
         $ticket = TicketType::create($validated);
+        $this->syncAgeGroups($ticket, $request);
 
         /** ------------------------------------------------
          * 2) RECORD SEATS SEPARATELY (NEW LOGIC)
@@ -233,6 +284,7 @@ class TicketTypeController extends Controller
         }
 
         $event = Event::find($eventId);
+        $ticket->load('ageGroups');
 
         return view('admin.ticket_types.edit', compact('ticket', 'bulkDiscounts', 'event'));
     }
@@ -306,6 +358,7 @@ class TicketTypeController extends Controller
         $selectedSeats = array_values(array_unique(array_filter(array_map('intval', $request->input('selected_seats', [])))));
         $bookedSeatIds = [];
         $finalSeatIds = $selectedSeats;
+        $ageGroupTotal = $this->ageGroupTotal($request);
 
         if ($isSeatSelectionUpdate) {
             $bookedSeatIds = \DB::table('ticket_type_seats')
@@ -319,7 +372,9 @@ class TicketTypeController extends Controller
             $finalSeatIds = array_values(array_unique(array_merge($selectedSeats, $bookedSeatIds)));
         }
 
-        $validated['total_tickets'] = $isSeatSelectionUpdate ? count($finalSeatIds) : ($request->input('total_tickets') ?? $ticket->total_tickets);
+        $validated['total_tickets'] = $ageGroupTotal > 0
+            ? $ageGroupTotal
+            : ($isSeatSelectionUpdate ? count($finalSeatIds) : ($request->input('total_tickets') ?? $ticket->total_tickets));
         $validated['ticket_type_color'] = $request->input('ticket_type_color');
         $validated['updated_by'] = Auth::id();
 
@@ -334,8 +389,10 @@ class TicketTypeController extends Controller
         $validated['enable_bulk_discount'] = $request->has('enable_bulk_discount');
         $validated['enable_tax'] = $request->has('enable_tax');
         $validated['enable_extra_charges'] = $request->has('enable_extra_charges');
+        $validated['enable_age_group'] = $request->has('enable_age_group') && $ageGroupTotal > 0;
 
         $ticket->update($validated);
+        $this->syncAgeGroups($ticket, $request);
 
         // --- SEAT SYNC LOGIC ---
         if ($isSeatSelectionUpdate) {

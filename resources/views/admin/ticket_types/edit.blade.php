@@ -82,6 +82,8 @@
                     <label>Discription</label>
                 </div>
 
+                @include('admin.ticket_types._partials.age-groups', ['ticket' => $ticket])
+
                 <div>
                     <button type="button" class="check-btn">
                         <input class="form-check-input disc-check" name="enable_bulk_discount" type="checkbox" value="enable-ticket-discount"

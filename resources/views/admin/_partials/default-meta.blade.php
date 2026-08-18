@@ -1,4 +1,4 @@
-<title>Ticket Seller | Book My Seats</title>
+<title>Ticket Seller | Dolphinevent</title>
 <meta name="description" content="lorem ipsom sjhcdsh dddnw j d jddn dn idi hewd hewdn iiwsfidiofn dfin dn iwi ddscc." />
 <meta name="keywords" content="abc, sahc, usacuc, sayd" />
 <meta name="author" content="Company Name" />

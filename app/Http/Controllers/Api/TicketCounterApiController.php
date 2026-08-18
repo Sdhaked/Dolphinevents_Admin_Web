@@ -11,6 +11,8 @@ use App\Models\DiscountCoupon;
 use App\Models\State;
 use App\Models\EventContestent;
 use App\Models\EventContestentVote;
+use App\Models\EventService;
+use App\Models\TicketTypeAgeGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -74,6 +76,10 @@ class TicketCounterApiController extends Controller
      */
     private function getResolvedQuantity(Request $request)
     {
+        if ($request->has('age_group_items') && is_array($request->age_group_items)) {
+            return collect($request->age_group_items)->sum(fn ($item) => max(0, (int) ($item['quantity'] ?? 0)));
+        }
+
         if ($request->has('selected_seats') && is_array($request->selected_seats)) {
             return count(array_values(array_unique($request->selected_seats)));
         }
@@ -240,9 +246,43 @@ class TicketCounterApiController extends Controller
 
         $event = Event::findOrFail($eventId);
         $parkingPricePerSlot = $event->car_slot_price ?? 0;
-        $ticketType = TicketType::findOrFail($ticket_type_id);
+        $ticketType = TicketType::with('ageGroups')->findOrFail($ticket_type_id);
         
-        $subtotal = $ticketType->ticket_price * $quantity;
+        $ageGroupItems = collect();
+        if ($ticketType->enable_age_group && is_array($request->age_group_items ?? null)) {
+            $ageGroupIds = collect($request->age_group_items)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
+            $ageGroups = TicketTypeAgeGroup::where('ticket_type_id', $ticketType->id)
+                ->whereIn('id', $ageGroupIds)
+                ->get()
+                ->keyBy('id');
+
+            $ageGroupItems = collect($request->age_group_items)
+                ->map(function ($item) use ($ageGroups) {
+                    $ageGroup = $ageGroups->get((int) ($item['id'] ?? 0));
+                    $quantity = max(0, (int) ($item['quantity'] ?? 0));
+
+                    if (!$ageGroup || $quantity <= 0) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $ageGroup->id,
+                        'label' => $ageGroup->label,
+                        'quantity' => min($quantity, (int) $ageGroup->max_quantity_per_booking),
+                        'price' => (float) $ageGroup->price,
+                    ];
+                })
+                ->filter()
+                ->values();
+        }
+
+        if ($ticketType->enable_age_group && $ageGroupItems->isNotEmpty()) {
+            $quantity = $ageGroupItems->sum('quantity');
+            $subtotal = $ageGroupItems->sum(fn ($item) => $item['price'] * $item['quantity']);
+        } else {
+            $subtotal = $ticketType->ticket_price * $quantity;
+        }
+
         $currency = Currency::symbolForEvent($event);
 
         // --- Discount Calculations ---
@@ -273,14 +313,50 @@ class TicketCounterApiController extends Controller
             }
         }
 
+        // --- Services ---
+        $serviceItems = collect();
+        if (is_array($request->service_items ?? null)) {
+            $serviceIds = collect($request->service_items)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
+            $services = EventService::where('event_id', $eventId)
+                ->where('status', true)
+                ->whereIn('id', $serviceIds)
+                ->get()
+                ->keyBy('id');
+
+            $serviceItems = collect($request->service_items)
+                ->map(function ($item) use ($services, $ticket_type_id) {
+                    $service = $services->get((int) ($item['id'] ?? 0));
+                    $quantity = max(0, (int) ($item['quantity'] ?? 0));
+
+                    if (!$service || $quantity <= 0 || !$service->isApplicableToTicketType($ticket_type_id)) {
+                        return null;
+                    }
+
+                    $quantity = min($quantity, (int) $service->max_buy_limit);
+
+                    return [
+                        'id' => $service->id,
+                        'name' => $service->name,
+                        'quantity' => $quantity,
+                        'price' => (float) $service->price,
+                        'total' => $quantity * (float) $service->price,
+                    ];
+                })
+                ->filter()
+                ->values();
+        }
+
+        $serviceTotal = $serviceItems->sum('total');
+
         // --- Parking ---
         $parkingTotal = 0;
         if($event->enable_car_parking && $parkingSlots > 0) {
             $parkingTotal = $parkingSlots * $parkingPricePerSlot;
         }
 
-        // --- Tax & Extra Charges (Calculated on Subtotal - Discount + Parking) ---
-        $taxableBasis = ($subtotal - $discountAmount) + $parkingTotal;
+        // --- Tax & Extra Charges ---
+        $ticketTotalAfterDiscount = max(0, $subtotal - $discountAmount);
+        $taxableBasis = $ticketTotalAfterDiscount + $serviceTotal + $parkingTotal;
         
         $taxAmount = 0;
         if ($ticketType->enable_tax) {
@@ -289,7 +365,7 @@ class TicketCounterApiController extends Controller
 
         $extraChargeAmount = 0;
         if ($ticketType->enable_extra_charges) {
-            $extraChargeAmount = ($taxableBasis * $ticketType->extra_charges_value) / 100; //
+            $extraChargeAmount = (($taxableBasis + $taxAmount) * $ticketType->extra_charges_value) / 100; //
         }
 
         $final_amount = $taxableBasis + $taxAmount + $extraChargeAmount;
@@ -299,6 +375,19 @@ class TicketCounterApiController extends Controller
             'ticket_price' => $currency . number_format($ticketType->ticket_price, 2),
             'quantity' => $quantity,
             'subtotal' => $currency . number_format($subtotal, 2),
+            'age_group_items' => $ageGroupItems->map(fn ($item) => [
+                'label' => $item['label'],
+                'quantity' => $item['quantity'],
+                'price' => $currency . number_format($item['price'], 2),
+                'total' => $currency . number_format($item['price'] * $item['quantity'], 2),
+            ])->all(),
+            'service_items' => $serviceItems->map(fn ($item) => [
+                'name' => $item['name'],
+                'quantity' => $item['quantity'],
+                'price' => $currency . number_format($item['price'], 2),
+                'total' => $currency . number_format($item['total'], 2),
+            ])->all(),
+            'service_total' => $currency . number_format($serviceTotal, 2),
             'parking_price' => $currency . number_format($parkingPricePerSlot, 2),
             'parking_slots' => $parkingSlots,
             'parking_total' => $currency . number_format($parkingTotal, 2),

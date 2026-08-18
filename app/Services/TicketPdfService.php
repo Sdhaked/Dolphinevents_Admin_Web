@@ -19,7 +19,7 @@ class TicketPdfService
      */
     public function generatePdfs($booking): array
     {
-        $booking->load('parkings');
+        $booking->load(['parkings', 'services', 'ageGroups']);
         $event = Event::with('support')->find($booking->event_id);
         $ticketType = TicketType::find($booking->ticket_type_id);
 

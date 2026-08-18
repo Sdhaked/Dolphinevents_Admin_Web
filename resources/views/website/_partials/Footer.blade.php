@@ -13,7 +13,7 @@
             <!-- Box 1 -->
             <div class="box-1">
                 <div>
-                    <img src="{{ asset('website/images/logo-w.svg') }}" alt="Book My Tecket Seat logo" class="f-logo" />
+                    <img src="{{ asset('website/images/logo-w.svg') }}" alt="Dolphinevent logo" class="f-logo" />
                 </div>
                 <ul>
                     @include('website._partials.footer-menu')
@@ -23,7 +23,7 @@
             <!-- Box 2 -->
             @if ($hasFooterContactInfo)
             <div class="box-2">
-                <h4 class="title">Book My Ticket Seat</h4>
+                <h4 class="title">Dolphinevent</h4>
                
                     <p>
                         We simplify online seat reservations, offering seamless, reliable, and efficient booking experiences tailored to your needs.
@@ -64,7 +64,7 @@
             @include('website._partials.backtotop')
             <div class="box-1">
                 <p>
-                    © <span id="year"></span> Copyright Book My Tecket Seat. All Rights Reserved
+                    © <span id="year"></span> Copyright Dolphinevent. All Rights Reserved
                 </p>
             </div>
             @if ($hasFooterSocialLinks)

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @if (empty($content?->meta_data))
-        <title>Book My Tecket Seat</title>
+        <title>Dolphinevent</title>
     @else
         {!! json_decode($content->meta_data, true) !!}
     @endif
@@ -104,7 +104,7 @@
                 <video style="width:100%; height:auto" autoplay muted loop plays-inline>
                     <source src="{{ asset('storage/' . $content->hero_video_path) }}" type="video/mp4" preload="auto"
                         poster="{{ $content->hero_video_poster ? asset('storage/' . $content->hero_video_poster) : '' }}"
-                        title="welcom to [bookmyseats] in UK">
+                        title="Welcome to Dolphinevent">
                 </video>
             @endif
             </section>

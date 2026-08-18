@@ -171,11 +171,16 @@
             $ticketQuantity = (int) ($booking->qty ?? 0);
             $parkingCount = $booking->parkings?->count() ?? 0;
             $parkingPrice = (float) ($event?->car_slot_price ?? 0);
-            $subtotal = $ticketPrice * $ticketQuantity;
+            $ageGroupRows = $booking->ageGroups ?? collect();
+            $serviceRows = $booking->services ?? collect();
+            $subtotal = $ageGroupRows->count() > 0
+                ? (float) $ageGroupRows->sum('total_amount')
+                : $ticketPrice * $ticketQuantity;
+            $serviceTotal = (float) $serviceRows->sum('total_amount');
             $parkingTotal = $parkingCount * $parkingPrice;
             $discountAmount = (float) ($booking->coupon_amount ?? 0);
             $discountedTickets = max(0, $subtotal - $discountAmount);
-            $taxableBasis = $discountedTickets + $parkingTotal;
+            $taxableBasis = $discountedTickets + $serviceTotal + $parkingTotal;
             $taxAmount = 0;
             $extraChargesAmount = 0;
 
@@ -184,7 +189,7 @@
             }
 
             if (($ticketType?->enable_extra_charges ?? false) && (float) ($ticketType->extra_charges_value ?? 0) > 0) {
-                $extraChargesAmount = ($taxableBasis * (float) $ticketType->extra_charges_value) / 100;
+                $extraChargesAmount = (($taxableBasis + $taxAmount) * (float) $ticketType->extra_charges_value) / 100;
             }
 
             $contestentVote = null;
@@ -320,7 +325,7 @@
                         </div>
                         <div class="info-row">
                             <div class="label">✉️ Email</div>
-                            <div class="value">{{ $event->support->email ?? $event->support_email ?? 'support@bookmyseats.ie' }}</div>
+                            <div class="value">{{ $event->support->email ?? $event->support_email ?? 'support@dolphinevent.com' }}</div>
                         </div>
                         <div>
                             <div class="label">📍 Address</div>
@@ -361,13 +366,23 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {{-- Original Subtotal Row --}}
-                    <tr>
-                        <td>{{ $ticketType->title }}</td>
-                        <td>{{ $ticketQuantity }}</td>
-                        <td>{{ $currency }}{{ number_format($ticketPrice, 2) }}</td>
-                        <td>{{ $currency }}{{ number_format($subtotal, 2) }}</td>
-                    </tr>
+                    @if($ageGroupRows->count() > 0)
+                        @foreach($ageGroupRows as $ageGroup)
+                            <tr>
+                                <td>{{ $ticketType->title }} - {{ $ageGroup->label }}</td>
+                                <td>{{ $ageGroup->quantity }}</td>
+                                <td>{{ $currency }}{{ number_format((float) $ageGroup->price, 2) }}</td>
+                                <td>{{ $currency }}{{ number_format((float) $ageGroup->total_amount, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    @else
+                        <tr>
+                            <td>{{ $ticketType->title }}</td>
+                            <td>{{ $ticketQuantity }}</td>
+                            <td>{{ $currency }}{{ number_format($ticketPrice, 2) }}</td>
+                            <td>{{ $currency }}{{ number_format($subtotal, 2) }}</td>
+                        </tr>
+                    @endif
 
                     {{-- Subtotal Label --}}
                     <tr>
@@ -399,6 +414,18 @@
                         </td>
                     </tr>
                     @endif
+
+                    {{-- Event Services Summary --}}
+                    @foreach($serviceRows as $service)
+                    <tr>
+                        <td class="bill-total" colspan="3">
+                            {{ $service->service_name }} ({{ $service->quantity }} {{ Str::plural('Service', $service->quantity) }})
+                        </td>
+                        <td class="bill-total" style="text-align: right;">
+                            {{ $currency }}{{ number_format((float) $service->total_amount, 2) }}
+                        </td>
+                    </tr>
+                    @endforeach
 
                     {{-- Car Parking Summary --}}
                     @if($parkingCount > 0)
@@ -469,7 +496,7 @@
                     device at the entrance.</span>
             </div>
             <div class="note-item">
-                <div class="note-dot"></div> <span>For any inquiries, contact us at {{ $event->support_email ?? 'support@bookmyseats.ie' }}</span>
+                <div class="note-dot"></div> <span>For any inquiries, contact us at {{ $event->support_email ?? 'support@dolphinevent.com' }}</span>
             </div>
         </div>
 

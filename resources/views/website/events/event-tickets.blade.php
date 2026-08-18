@@ -81,11 +81,8 @@
                     @endif
                 </div>
             @php
-                $formAction = ($event->type == 2)
-                    ? route('website.events.event_seats', ['event' => $event->slug])
-                    : route('website.events.checkout.initiate');
-
-                $formMethod = ($event->type == 2) ? 'GET' : 'POST';
+                $formAction = route('website.events.checkout.initiate');
+                $formMethod = 'POST';
             @endphp
 
             <form method="{{ $formMethod }}" action="{{ $formAction }}">
