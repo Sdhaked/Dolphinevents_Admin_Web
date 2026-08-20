@@ -54,6 +54,7 @@ Route::prefix('admin')->controller(AuthController::class)->middleware('guest')->
     Route::post('/login', 'loginPost')->name('login.post');
     Route::post('/login/verify-otp', 'verifyLoginOtp')->name('login.verify.otp');
     Route::post('/login/resend-otp', 'resendLoginOtp')->name('login.resend.otp');
+    Route::post('/login/change-email', 'changeLoginEmail')->name('login.change.email');
 
     Route::post('/forgot-password', 'sendResetLink')->name('password.email');
     Route::post('/reset-password', 'reset')->name('password.reset');

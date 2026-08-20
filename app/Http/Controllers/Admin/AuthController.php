@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -62,11 +63,15 @@ class AuthController extends Controller
             ])->withInput($request->only('email'));
         }
 
-        $this->sendAdminLoginOtp($user);
+        if (!$this->sendAdminLoginOtp($user)) {
+            return back()
+                ->withErrors(['email' => $this->adminLoginOtpDeliveryErrorMessage()])
+                ->withInput($request->only('email'));
+        }
 
         return back()
             ->withInput($request->only('email'))
-            ->with('success', 'OTP has been sent to your email.');
+            ->with('success', 'OTP sent successfully');
     }
 
     public function verifyLoginOtp(Request $request)
@@ -131,11 +136,36 @@ class AuthController extends Controller
                 ->withErrors(['email' => 'Admin account not found.']);
         }
 
-        $this->sendAdminLoginOtp($user);
+        if (!$this->sendAdminLoginOtp($user)) {
+            return back()
+                ->withInput(['email' => $user->email])
+                ->withErrors(['email' => $this->adminLoginOtpDeliveryErrorMessage()]);
+        }
 
         return back()
             ->withInput(['email' => $user->email])
-            ->with('success', 'A new OTP has been sent to your email.');
+            ->with('success', 'OTP sent successfully');
+    }
+
+    public function changeLoginEmail(LoginRequest $request)
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return back()
+                ->withErrors(['email' => 'No admin account was found for this email.'])
+                ->withInput($request->only('email'));
+        }
+
+        if (!$this->sendAdminLoginOtp($user)) {
+            return back()
+                ->withErrors(['email' => $this->adminLoginOtpDeliveryErrorMessage()])
+                ->withInput($request->only('email'));
+        }
+
+        return redirect()->route('login')
+            ->withInput($request->only('email'))
+            ->with('success', 'OTP sent successfully');
     }
 
     /**
@@ -150,9 +180,29 @@ class AuthController extends Controller
         return redirect()->route('login');
     }
 
-    private function sendAdminLoginOtp(User $user): void
+    private function sendAdminLoginOtp(User $user): bool
     {
+        if ($this->adminLoginOtpUsesNonDeliveringMailer()) {
+            Log::warning('Admin login OTP was not sent because the mailer does not deliver email.', [
+                'mailer' => config('mail.default'),
+                'email' => $user->email,
+            ]);
+
+            return false;
+        }
+
         $otp = (string) random_int(100000, 999999);
+
+        try {
+            Mail::to($user->email)->send(new LoginOtpMail($otp, $user));
+        } catch (\Throwable $exception) {
+            Log::error('Admin login OTP email failed to send.', [
+                'email' => $user->email,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
 
         session()->put('admin_login_otp', [
             'user_id' => $user->id,
@@ -162,7 +212,17 @@ class AuthController extends Controller
             'resend_available_at' => now()->addSeconds(60)->toIso8601String(),
         ]);
 
-        Mail::to($user->email)->send(new LoginOtpMail($otp, $user));
+        return true;
+    }
+
+    private function adminLoginOtpUsesNonDeliveringMailer(): bool
+    {
+        return in_array(config('mail.default'), ['array', 'log', 'null'], true);
+    }
+
+    private function adminLoginOtpDeliveryErrorMessage(): string
+    {
+        return 'OTP email could not be sent. Please check mail configuration and try again.';
     }
 
     private function adminLoginOtpSession(): ?array

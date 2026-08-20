@@ -20,3 +20,63 @@
   width: 10rem;
   margin: auto;
 }
+
+.auth-message {
+  font-size: 0.95rem;
+  margin: 0.9rem 0 0.35rem;
+}
+
+.auth-message--success {
+  color: #18b24b;
+}
+
+.auth-message--warning {
+  color: #d8a12d;
+}
+
+.auth-message--error {
+  color: #dc2626;
+}
+
+.auth-helper-text {
+  color: #b8cdf0;
+  font-size: 0.92rem;
+  margin: 1rem 0 0.75rem;
+}
+
+.auth-form {
+  margin-top: 0.6rem;
+}
+
+.auth-otp-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.auth-otp-actions form {
+  width: auto;
+}
+
+.auth-otp-actions .btn-link {
+  border: 0;
+  color: #b58bff;
+  padding: 0;
+  text-decoration: none;
+}
+
+.auth-otp-actions .btn-link:hover {
+  color: #ffffff;
+}
+
+.auth-otp-actions .btn-link:disabled {
+  color: #7f8aa3;
+  cursor: not-allowed;
+}
+
+.auth-change-email-form {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
