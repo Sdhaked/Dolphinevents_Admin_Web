@@ -960,6 +960,32 @@ html.dark .metabox {
 /* ==============================
       PRELODER SCREEN
 ============================== */
+#createeventModal .modal-content {
+  overflow: hidden;
+  position: relative;
+}
+
+#createeventModal .create-event-modal-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(5, 8, 16, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+#createeventModal .create-event-modal-loader.d-none {
+  display: none !important;
+}
+
+#createeventModal .create-event-modal-loader .spinner-border {
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--color-primary);
+}
+
 .preloder {
   top: 0;
   left: 0;

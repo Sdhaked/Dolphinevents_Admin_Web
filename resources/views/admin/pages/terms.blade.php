@@ -32,14 +32,6 @@
 
             <h4 class="hd-lg">Terms Page Content</h4>
             
-            @if (session('success'))
-                <script>
-                    window.addEventListener('load', function() {
-                        createNotification("success", "{{ session('success') }}", "");
-                    });
-                </script>
-            @endif
-
             <form class="needs-validation" method="POST" action="{{ route('admin.pages.terms.store') }}" enctype="multipart/form-data" novalidate>
                 @csrf
                 <!-- Breadcrumb -->

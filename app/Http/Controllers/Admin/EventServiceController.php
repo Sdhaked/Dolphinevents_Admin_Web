@@ -8,6 +8,7 @@ use App\Models\EventService;
 use App\Models\TicketType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class EventServiceController extends Controller
 {
@@ -41,7 +42,7 @@ class EventServiceController extends Controller
             ...$validated,
             'event_id' => $eventId,
             'is_mandatory' => $request->boolean('is_mandatory'),
-            'status' => $request->boolean('status', true),
+            'status' => $request->boolean('status'),
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
         ]);
@@ -74,14 +75,40 @@ class EventServiceController extends Controller
 
     private function validatedData(Request $request): array
     {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'available_quantity' => ['required', 'integer', 'min:0'],
-            'max_buy_limit' => ['required', 'integer', 'min:1'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'applicable_ticket_type_ids' => ['nullable', 'array'],
-            'applicable_ticket_type_ids.*' => ['integer', 'exists:ticket_types,id'],
+        $eventId = (int) session('active_event_id');
+        $request->merge([
+            'name' => trim((string) $request->input('name')),
         ]);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'available_quantity' => ['required', 'integer', 'min:1', 'max:999999'],
+            'max_buy_limit' => ['required', 'integer', 'min:1', 'lte:available_quantity', 'max:999999'],
+            'price' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'regex:/^\d+(\.\d{1,2})?$/'],
+            'applicable_ticket_type_ids' => ['nullable', 'array'],
+            'applicable_ticket_type_ids.*' => [
+                'integer',
+                Rule::exists('ticket_types', 'id')->where(fn ($query) => $query->where('event_id', $eventId)),
+            ],
+        ], [
+            'available_quantity.min' => 'Available quantity must be at least 1.',
+            'max_buy_limit.lte' => 'Max buy limit cannot be greater than available quantity.',
+            'price.regex' => 'Price can have a maximum of 2 decimal places.',
+            'applicable_ticket_type_ids.*.exists' => 'Selected ticket type is not available for the current event.',
+        ], [
+            'name' => 'service name',
+            'available_quantity' => 'available quantity',
+            'max_buy_limit' => 'max buy limit',
+            'applicable_ticket_type_ids.*' => 'ticket type',
+        ]);
+
+        $validated['applicable_ticket_type_ids'] = collect($validated['applicable_ticket_type_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $validated;
     }
 
     private function abortIfWrongEvent(EventService $eventService): void

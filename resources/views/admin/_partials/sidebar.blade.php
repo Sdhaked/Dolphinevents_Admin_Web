@@ -522,23 +522,32 @@
                                     <label for="dfv5">Event Name*</label>
                                 </div>
 
-                                <div class="d-flex flex-wrap gap-card">
-                                    <div>
-                                        <button type="button" class="check-btn">
-                                            <input class="form-check-input" type="radio" value="1" name="type"
-                                                   id="dfv4" checked>
-                                            <label for="dfv4">Simple Booking System</label>
-                                        </button>
-                                    </div>
+                                @php
+                                    $showBookingTypeSelection = config('entities.event_booking_systems.show_selection', false);
+                                    $defaultBookingType = (int) config('entities.event_booking_systems.default_type', 1);
+                                @endphp
 
-                                    <div>
-                                        <button type="button" class="check-btn">
-                                            <input class="form-check-input" type="radio" value="2" name="type"
-                                                   id="df8">
-                                            <label for="df8">Seat Booking System</label>
-                                        </button>
+                                @if ($showBookingTypeSelection)
+                                    <div class="d-flex flex-wrap gap-card">
+                                        <div>
+                                            <button type="button" class="check-btn">
+                                                <input class="form-check-input" type="radio" value="1" name="type"
+                                                       id="dfv4" {{ $defaultBookingType === 1 ? 'checked' : '' }}>
+                                                <label for="dfv4">Simple Booking System</label>
+                                            </button>
+                                        </div>
+
+                                        <div>
+                                            <button type="button" class="check-btn">
+                                                <input class="form-check-input" type="radio" value="2" name="type"
+                                                       id="df8" {{ $defaultBookingType === 2 ? 'checked' : '' }}>
+                                                <label for="df8">Seat Booking System</label>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                @else
+                                    <input type="hidden" name="type" value="{{ $defaultBookingType }}">
+                                @endif
 
                                 <div class="form-floating choose-pattern-fd54 d-none">
                                     <select class="form-select" id="dsc48" required="">
@@ -570,24 +579,16 @@
                         @endif
                     </div>
                 </div>
+
+                <div class="create-event-modal-loader d-none" role="status" aria-live="polite" aria-label="Creating event">
+                    <span class="spinner-border" aria-hidden="true"></span>
+                </div>
             </div>
         </div>
     </div>
 @endif
 
 @section('custom-script')
-    @if (session('success'))
-        <script>
-            createNotification("success", "{{ session('success') }}", "");
-        </script>
-    @endif
-
-    @if (session('error'))
-        <script>
-            createNotification("error", "{{ session('error') }}", "");
-        </script>
-    @endif
-
     @if (session('active_event_id'))
         @php
             $currentEvent = \App\Models\Event::find(session('active_event_id'));
@@ -659,9 +660,23 @@
             });
         }
 
+        function setCreateEventModalLoading(isLoading) {
+            const modal = document.getElementById('createeventModal');
+            const loader = modal?.querySelector('.create-event-modal-loader');
+
+            if (loader) {
+                loader.classList.toggle('d-none', !isLoading);
+            }
+        }
+
         $('.duplicate-event-form').on('submit', function(e) {
             e.preventDefault();
             clearFormErrors(this);
+            const submitButton = this.querySelector('button[type="submit"]');
+            setCreateEventModalLoading(true);
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
 
             const payload = {
                 new_title: $('#df5').val(),
@@ -685,9 +700,23 @@
                     window.location.reload();
                 } else {
                     applyFormErrors(document.querySelector('.duplicate-event-form'), data.errors || {});
+                    setCreateEventModalLoading(false);
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                    }
                     if (typeof createNotification === 'function') {
                         createNotification("error", getFirstErrorMessage(data), "");
                     }
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                setCreateEventModalLoading(false);
+                if (submitButton) {
+                    submitButton.disabled = false;
+                }
+                if (typeof createNotification === 'function') {
+                    createNotification("error", "Something went wrong. Please try again.", "");
                 }
             });
         });
@@ -695,10 +724,15 @@
         document.addEventListener("DOMContentLoaded", function () {
             const form = document.querySelector(".new-event-form");
             if (!form) return;
+            const submitButton = form.querySelector('button[type="submit"]');
 
             form.addEventListener("submit", async function (e) {
                 e.preventDefault();
                 clearFormErrors(form);
+                setCreateEventModalLoading(true);
+                if (submitButton) {
+                    submitButton.disabled = true;
+                }
 
                 const formData = new FormData(form);
 
@@ -727,10 +761,18 @@
                     } else {
                         console.error(result);
                         applyFormErrors(form, result.errors || {});
+                        setCreateEventModalLoading(false);
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                        }
                         createNotification("error", getFirstErrorMessage(result), "");
                     }
                 } catch (error) {
                     console.error("Error:", error);
+                    setCreateEventModalLoading(false);
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                    }
                 }
             });
         });

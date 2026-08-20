@@ -32,13 +32,6 @@
 
             <h4 class="hd-lg">Event Archive Page Content</h4>
 
-            @if(session('success'))
-                <div class="alert alert-primary alert-dismissible fade show" role="alert">
-                    <i class="fa-solid fa-circle-info me-1"></i> <strong>{{ session('success') }}</strong>.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
             <form action="{{ route('admin.pages.event_archive.store') }}" method="POST" class="needs-validation" novalidate enctype="multipart/form-data">
                 @csrf
                 <!-- Breadcrumb -->

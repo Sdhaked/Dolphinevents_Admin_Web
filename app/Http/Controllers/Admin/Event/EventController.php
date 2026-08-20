@@ -155,14 +155,21 @@ class EventController extends Controller
     public function store(Request $request)
     {
         try {
+            $showBookingTypeSelection = config('entities.event_booking_systems.show_selection', false);
+            $defaultBookingType = (int) config('entities.event_booking_systems.default_type', 1);
+
             $validated = $request->validate([
                 'title' => ['required', 'string', 'max:255'],
-                'type' => ['required', 'integer', 'in:1,2'],
+                'type' => [
+                    $showBookingTypeSelection ? 'required' : 'nullable',
+                    'integer',
+                    $showBookingTypeSelection ? 'in:1,2' : 'in:' . $defaultBookingType,
+                ],
             ], [], $this->eventValidationAttributes());
 
             $event = Event::create([
                 'title' => $validated['title'],
-                'type' => $validated['type'],
+                'type' => $showBookingTypeSelection ? (int) $validated['type'] : $defaultBookingType,
             ]);
 
             session(['active_event_id' => $event->id]);

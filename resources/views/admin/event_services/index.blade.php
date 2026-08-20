@@ -106,29 +106,68 @@
                     </button>
                 </div>
                 <div class="modal-body">
+                    @php($oldTicketTypeIds = array_map('intval', old('applicable_ticket_type_ids', [])))
+                    @php($oldStatusChecked = old('_token') ? old('status') : '1')
                     <form id="serviceForm" action="{{ route('admin.event.services.store') }}" method="POST" class="grid-1 gap-card needs-validation" novalidate>
                         @csrf
                         <input type="hidden" name="_method" value="POST">
 
                         <div class="form-floating">
-                            <input type="text" name="name" class="form-control" id="serviceName" required>
+                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+                                id="serviceName" value="{{ old('name') }}" maxlength="255" required>
                             <label for="serviceName">Service Name*</label>
+                            <div class="invalid-feedback" data-feedback-for="serviceName">
+                                @error('name')
+                                    {{ $message }}
+                                @else
+                                    Service name is required.
+                                @enderror
+                            </div>
                         </div>
 
                         <div class="grid-2 grid-sm-1 gap-card">
                             <div class="form-floating">
-                                <input type="number" name="available_quantity" class="form-control" id="serviceQty" min="0" required>
+                                <input type="number" name="available_quantity"
+                                    class="form-control @error('available_quantity') is-invalid @enderror"
+                                    id="serviceQty" value="{{ old('available_quantity') }}" min="1" max="999999"
+                                    step="1" inputmode="numeric" required>
                                 <label for="serviceQty">Available Quantity*</label>
+                                <div class="invalid-feedback" data-feedback-for="serviceQty">
+                                    @error('available_quantity')
+                                        {{ $message }}
+                                    @else
+                                        Available quantity must be at least 1.
+                                    @enderror
+                                </div>
                             </div>
                             <div class="form-floating">
-                                <input type="number" name="max_buy_limit" class="form-control" id="serviceLimit" min="1" required>
+                                <input type="number" name="max_buy_limit"
+                                    class="form-control @error('max_buy_limit') is-invalid @enderror"
+                                    id="serviceLimit" value="{{ old('max_buy_limit') }}" min="1" max="999999"
+                                    step="1" inputmode="numeric" required>
                                 <label for="serviceLimit">Max Buy Limit*</label>
+                                <div class="invalid-feedback" data-feedback-for="serviceLimit">
+                                    @error('max_buy_limit')
+                                        {{ $message }}
+                                    @else
+                                        Max buy limit cannot be more than available quantity.
+                                    @enderror
+                                </div>
                             </div>
                         </div>
 
                         <div class="form-floating">
-                            <input type="number" name="price" class="form-control" id="servicePrice" min="0" step="0.01" required>
+                            <input type="number" name="price" class="form-control @error('price') is-invalid @enderror"
+                                id="servicePrice" value="{{ old('price') }}" min="0" max="99999999.99" step="0.01"
+                                inputmode="decimal" required>
                             <label for="servicePrice">Price*</label>
+                            <div class="invalid-feedback" data-feedback-for="servicePrice">
+                                @error('price')
+                                    {{ $message }}
+                                @else
+                                    Price is required and can have up to 2 decimal places.
+                                @enderror
+                            </div>
                         </div>
 
                         <div>
@@ -138,21 +177,30 @@
                                     <button type="button" class="check-btn">
                                         <input class="form-check-input service-ticket-type" type="checkbox"
                                             name="applicable_ticket_type_ids[]" value="{{ $ticketType->id }}"
-                                            id="service_ticket_{{ $ticketType->id }}">
+                                            id="service_ticket_{{ $ticketType->id }}"
+                                            {{ in_array((int) $ticketType->id, $oldTicketTypeIds, true) ? 'checked' : '' }}>
                                         <label for="service_ticket_{{ $ticketType->id }}">{{ $ticketType->title }}</label>
                                     </button>
                                 @endforeach
                             </div>
+                            @error('applicable_ticket_type_ids')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                            @error('applicable_ticket_type_ids.*')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
                             <small>Leave all unchecked to make this service available for every ticket type.</small>
                         </div>
 
                         <div class="d-flex flex-wrap gap-card">
                             <button type="button" class="check-btn">
-                                <input class="form-check-input" name="is_mandatory" type="checkbox" value="1" id="serviceMandatory">
+                                <input class="form-check-input" name="is_mandatory" type="checkbox" value="1"
+                                    id="serviceMandatory" {{ old('is_mandatory') ? 'checked' : '' }}>
                                 <label for="serviceMandatory">Mandatory Purchase</label>
                             </button>
                             <button type="button" class="check-btn">
-                                <input class="form-check-input" name="status" type="checkbox" value="1" id="serviceStatus" checked>
+                                <input class="form-check-input" name="status" type="checkbox" value="1"
+                                    id="serviceStatus" {{ $oldStatusChecked ? 'checked' : '' }}>
                                 <label for="serviceStatus">Active</label>
                             </button>
                         </div>
@@ -168,14 +216,117 @@
         const serviceModal = document.getElementById('serviceModal');
         const serviceForm = document.getElementById('serviceForm');
         const methodInput = serviceForm.querySelector('input[name="_method"]');
+        const serviceNameInput = document.getElementById('serviceName');
+        const serviceQtyInput = document.getElementById('serviceQty');
+        const serviceLimitInput = document.getElementById('serviceLimit');
+        const servicePriceInput = document.getElementById('servicePrice');
+        const hasServiceValidationErrors = @json($errors->any());
+        const serviceStoreAction = @json(route('admin.event.services.store'));
+
+        document.querySelectorAll('[data-feedback-for]').forEach((feedback) => {
+            feedback.dataset.defaultMessage = feedback.textContent.trim();
+        });
+
+        function serviceFeedback(input) {
+            return document.querySelector(`[data-feedback-for="${input.id}"]`);
+        }
+
+        function setServiceFeedback(input, message) {
+            input.setCustomValidity(message || '');
+
+            const feedback = serviceFeedback(input);
+            if (feedback) {
+                feedback.textContent = message || feedback.dataset.defaultMessage || '';
+            }
+        }
+
+        function clearServiceFeedback() {
+            setServiceFeedback(serviceNameInput, '');
+            setServiceFeedback(serviceQtyInput, '');
+            setServiceFeedback(serviceLimitInput, '');
+            setServiceFeedback(servicePriceInput, '');
+        }
+
+        function resetServiceFormForCreate() {
+            serviceNameInput.value = '';
+            serviceQtyInput.value = '';
+            serviceLimitInput.value = '';
+            servicePriceInput.value = '';
+            document.getElementById('serviceMandatory').checked = false;
+            document.getElementById('serviceStatus').checked = true;
+            document.querySelectorAll('.service-ticket-type').forEach((checkbox) => {
+                checkbox.checked = false;
+            });
+        }
+
+        function validateIntegerField(input, label) {
+            if (!input.value) {
+                setServiceFeedback(input, '');
+                return;
+            }
+
+            if (!/^\d+$/.test(input.value)) {
+                setServiceFeedback(input, `${label} must be a whole number.`);
+                return;
+            }
+
+            if (Number(input.value) < 1) {
+                setServiceFeedback(input, `${label} must be at least 1.`);
+                return;
+            }
+
+            if (Number(input.value) > 999999) {
+                setServiceFeedback(input, `${label} cannot be more than 999999.`);
+                return;
+            }
+
+            setServiceFeedback(input, '');
+        }
+
+        function validateServiceForm() {
+            validateIntegerField(serviceQtyInput, 'Available quantity');
+            validateIntegerField(serviceLimitInput, 'Max buy limit');
+
+            if (serviceQtyInput.value && /^\d+$/.test(serviceQtyInput.value) && Number(serviceQtyInput.value) >= 1) {
+                serviceLimitInput.max = serviceQtyInput.value;
+            } else {
+                serviceLimitInput.removeAttribute('max');
+            }
+
+            const quantityIsValid = /^\d+$/.test(serviceQtyInput.value) && Number(serviceQtyInput.value) >= 1;
+            const limitIsValidInteger = /^\d+$/.test(serviceLimitInput.value) && Number(serviceLimitInput.value) >= 1;
+            if (quantityIsValid && limitIsValidInteger && Number(serviceLimitInput.value) > Number(serviceQtyInput.value)) {
+                setServiceFeedback(serviceLimitInput, 'Max buy limit cannot be more than available quantity.');
+            }
+
+            if (!servicePriceInput.value) {
+                setServiceFeedback(servicePriceInput, '');
+            } else if (!/^\d+(\.\d{1,2})?$/.test(servicePriceInput.value)) {
+                setServiceFeedback(servicePriceInput, 'Price can have a maximum of 2 decimal places.');
+            } else if (Number(servicePriceInput.value) > 99999999.99) {
+                setServiceFeedback(servicePriceInput, 'Price is too high.');
+            } else {
+                setServiceFeedback(servicePriceInput, '');
+            }
+        }
 
         serviceModal.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
-            serviceForm.reset();
-            serviceForm.action = @json(route('admin.event.services.store'));
+            serviceForm.classList.remove('was-validated');
+            serviceForm.querySelectorAll('.is-invalid').forEach((field) => {
+                field.classList.remove('is-invalid');
+            });
+            clearServiceFeedback();
+            serviceForm.action = serviceStoreAction;
             methodInput.value = 'POST';
             document.getElementById('serviceModalTitle').textContent = 'Create Event Service';
-            document.getElementById('serviceStatus').checked = true;
+
+            if (button) {
+                serviceForm.reset();
+                resetServiceFormForCreate();
+            }
+
+            validateServiceForm();
 
             if (!button?.dataset.action) return;
 
@@ -193,6 +344,46 @@
             document.querySelectorAll('.service-ticket-type').forEach((checkbox) => {
                 checkbox.checked = ids.includes(String(checkbox.value));
             });
+
+            validateServiceForm();
+        });
+
+        serviceModal.addEventListener('hidden.bs.modal', function () {
+            serviceForm.classList.remove('was-validated');
+            clearServiceFeedback();
+        });
+
+        [serviceQtyInput, serviceLimitInput, servicePriceInput].forEach((input) => {
+            input.addEventListener('input', validateServiceForm);
+        });
+
+        serviceForm.addEventListener('submit', function (event) {
+            validateServiceForm();
+
+            if (!serviceForm.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+                serviceForm.classList.add('was-validated');
+
+                const firstInvalid = serviceForm.querySelector(':invalid');
+                firstInvalid?.focus();
+
+                if (typeof createNotification === 'function') {
+                    createNotification('error', firstInvalid?.validationMessage || 'Please fix the highlighted fields.', '');
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!hasServiceValidationErrors) return;
+
+            validateServiceForm();
+            serviceForm.classList.add('was-validated');
+            bootstrap.Modal.getOrCreateInstance(serviceModal).show();
+
+            if (typeof createNotification === 'function') {
+                createNotification('error', 'Please fix the highlighted fields.', '');
+            }
         });
     </script>
 @endsection

@@ -127,7 +127,10 @@ class EventController extends Controller
      */
     public function event_venue(Event $event)
     {
-        
+        if (!$this->eventUsesSeatBooking($event)) {
+            return redirect()->route('website.events.event_tickets', $event->slug);
+        }
+
         $event->load([
                     'ticketTypes',
                     'ticketTypes.bulkDiscounts'
@@ -164,6 +167,50 @@ class EventController extends Controller
         }
 
         return view('website.events.event-tickets', compact('event'));
+    }
+
+    private function eventUsesSeatBooking(Event $event): bool
+    {
+        return (int) ($event->type ?? 1) === 2
+            && (bool) config('entities.event_booking_systems.show_selection', false);
+    }
+
+    private function checkoutHoldExpiresAt(): Carbon
+    {
+        return now()->copy()->addMinutes((int) config('entities.checkout_hold_minutes', 30));
+    }
+
+    private function activeBookingStatusesForAvailability(): array
+    {
+        return [
+            TicketCounter::STATUS_CONFIRMED,
+            TicketCounter::STATUS_PENDING_VERIFICATION,
+            TicketCounter::STATUS_PENDING_PAYMENT,
+        ];
+    }
+
+    private function availableTicketQuantity(TicketType $ticketType, ?int $excludeBookingId = null): int
+    {
+        $query = TicketCounter::where('ticket_type_id', $ticketType->id)
+            ->whereIn('booking_status', $this->activeBookingStatusesForAvailability());
+
+        if ($excludeBookingId) {
+            $query->whereKeyNot($excludeBookingId);
+        }
+
+        return max(0, (int) $ticketType->total_tickets - (int) $query->sum('qty'));
+    }
+
+    private function quoteInputFromHold(TicketCounter $booking, TicketHold $hold): array
+    {
+        return [
+            'quantity' => $booking->qty ?: $hold->quantity,
+            'coupon_code' => $booking->coupon_code ?: $hold->coupon_code,
+            'service_items' => $hold->service_items ?? [],
+            'age_group_items' => $hold->age_group_items ?? [],
+            'parking_slots' => $hold->parking_slots ?? 0,
+            'car_details' => $hold->car_details ?? [],
+        ];
     }
 
     /**
@@ -803,12 +850,14 @@ class EventController extends Controller
         $ticketType = $event->ticketTypes()->findOrFail($request->ticket_type_id);
         
         // Determine quantity: if seats are provided, count them; otherwise use quantity input
-        $selectedSeats = collect($request->input('selected_seats', []))
-            ->filter(fn ($seatId) => filled($seatId))
-            ->map(fn ($seatId) => (int) $seatId)
-            ->values()
-            ->all();
-        $requiresSeatSelection = DB::table('ticket_type_seats')
+        $selectedSeats = $this->eventUsesSeatBooking($event)
+            ? collect($request->input('selected_seats', []))
+                ->filter(fn ($seatId) => filled($seatId))
+                ->map(fn ($seatId) => (int) $seatId)
+                ->values()
+                ->all()
+            : [];
+        $requiresSeatSelection = $this->eventUsesSeatBooking($event) && DB::table('ticket_type_seats')
             ->where('event_id', $event->id)
             ->where('ticket_type_id', $ticketType->id)
             ->exists();
@@ -821,12 +870,12 @@ class EventController extends Controller
 
         $quantity = !empty($selectedSeats) ? count($selectedSeats) : $request->input('quantity', 1);
 
-        if ($quantity > 20) {
+        if ($quantity < 1 || $quantity > 20) {
             return back()->with('error', 'Maximum 20 tickets are allowed per booking.');
         }
         
         // 1. Availability Check
-        if ($ticketType->available_tickets < $quantity) {
+        if ($this->availableTicketQuantity($ticketType) < $quantity) {
             return back()->with('error', 'Not enough tickets available');
         }
 
@@ -880,7 +929,7 @@ class EventController extends Controller
             'token'          => $token,
             'ip_address'     => $request->ip(),
             'user_agent'     => $request->userAgent(),
-            'expires_at'     => now()->copy()->addMinutes(5),
+            'expires_at'     => $this->checkoutHoldExpiresAt(),
         ]);
 
         return redirect()->route('website.events.checkout', $token);

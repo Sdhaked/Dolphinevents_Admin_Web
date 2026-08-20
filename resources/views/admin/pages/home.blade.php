@@ -32,14 +32,6 @@
 
             <h5 class="hd-lg">Home Page Content</h5>
 
-            @if (session('success'))
-                <script>
-                    window.addEventListener('load', function() {
-                        createNotification("success", "{{ session('success') }}", "");
-                    });
-                </script>
-            @endif
-
             <form action="{{ route('admin.pages.home.store') }}" method="POST" class="needs-validation" novalidate
                 enctype="multipart/form-data">
                 @csrf

@@ -32,14 +32,6 @@
 
             <h4 class="hd-lg">Tickets Page Content</h4>
 
-            @if (session('success'))
-                <script>
-                    window.addEventListener('load', function() {
-                        createNotification("success", "{{ session('success') }}", "");
-                    });
-                </script>
-            @endif
-
             <form action="{{ route('admin.pages.tickets.store') }}" method="POST" class="needs-validation" novalidate>
                 @csrf
                 <!-- SEO -->

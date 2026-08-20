@@ -477,14 +477,14 @@ if (eventTabRadioBtns.length) {
 //   Fun() Create New Event Booking Stsyem Selection 🥗
 // -------------------------------------------------------
 // Select the radio buttons and the dropdown
-const radioButtons = document.querySelectorAll('input[name="ticket-system"]');
+const radioButtons = document.querySelectorAll('input[name="type"]');
 const selectElement = document.getElementById("dsc48");
 const selectPatternBox = document.querySelector(".choose-pattern-fd54");
 
 // Add change event listeners to the radio buttons
 radioButtons.forEach((radio) => {
   radio.addEventListener("change", () => {
-    if (radio.value === "seat-booking-system" && radio.checked) {
+    if (radio.value === "2" && radio.checked) {
       selectElement.setAttribute("required", "");
       selectPatternBox.classList.remove("d-none");
     } else {
@@ -493,3 +493,12 @@ radioButtons.forEach((radio) => {
     }
   });
 });
+
+const selectedBookingType = document.querySelector('input[name="type"]:checked');
+if (selectedBookingType?.value === "2") {
+  selectElement?.setAttribute("required", "");
+  selectPatternBox?.classList.remove("d-none");
+} else {
+  selectElement?.removeAttribute("required");
+  selectPatternBox?.classList.add("d-none");
+}
