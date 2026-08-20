@@ -6,7 +6,7 @@
             <!-- Brand Icon COL 1st 🥗-->
             <div class="logo-nav-col">
                 <a href="{{ route('website.home.index') }}">
-                    <img src="{{ asset('website/images/logo.svg') }}" alt="logo" />
+                    <img src="{{ asset('website/images/logo.svg') }}" alt="Dolphinevent logo" />
                 </a>
             </div>
 

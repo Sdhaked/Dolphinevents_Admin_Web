@@ -4,7 +4,7 @@
         <div class="sidebar-toggle">
             <i class="fa-solid fa-bars-staggered"></i>
         </div>
-        <img class="logo">
+        <img class="logo" src="{{ asset('images/logo.svg') }}" alt="Dolphinevent logo">
     </div>
 
     <div class="rightSid">

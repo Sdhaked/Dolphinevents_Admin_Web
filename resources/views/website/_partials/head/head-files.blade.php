@@ -1,4 +1,5 @@
-<link rel="icon" type="image/x-icon" href="{{ asset('website/images/icon.svg') }}" />
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}" />
+<link rel="shortcut icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}" />
 
 <!-- Meta Description -->
 <meta name="description" content="Explore the theme" />
