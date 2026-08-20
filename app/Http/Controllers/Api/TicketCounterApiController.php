@@ -39,7 +39,11 @@ class TicketCounterApiController extends Controller
             ->get()
             ->map(function ($ticketType) {
                 $soldCount = TicketCounter::where('ticket_type_id', $ticketType->id)
-                    ->whereIn('booking_status', [TicketCounter::STATUS_CONFIRMED, TicketCounter::STATUS_PENDING_VERIFICATION])
+                    ->whereIn('booking_status', [
+                        TicketCounter::STATUS_CONFIRMED,
+                        TicketCounter::STATUS_PENDING_VERIFICATION,
+                        TicketCounter::STATUS_PENDING_PAYMENT,
+                    ])
                     ->sum('qty');
                 $ticketType->available_tickets = $ticketType->total_tickets - $soldCount;
                 return $ticketType;
@@ -57,7 +61,11 @@ class TicketCounterApiController extends Controller
         
         // Calculate actual stock based on database records
         $soldCount = TicketCounter::where('ticket_type_id', $ticketTypeId)
-            ->whereIn('booking_status', [TicketCounter::STATUS_CONFIRMED, TicketCounter::STATUS_PENDING_VERIFICATION])
+            ->whereIn('booking_status', [
+                TicketCounter::STATUS_CONFIRMED,
+                TicketCounter::STATUS_PENDING_VERIFICATION,
+                TicketCounter::STATUS_PENDING_PAYMENT,
+            ])
             ->sum('qty');
         $actualRemaining = $ticketType->total_tickets - $soldCount;
 
@@ -76,13 +84,22 @@ class TicketCounterApiController extends Controller
      */
     private function getResolvedQuantity(Request $request)
     {
-        if ($request->has('age_group_items') && is_array($request->age_group_items)) {
-            return collect($request->age_group_items)->sum(fn ($item) => max(0, (int) ($item['quantity'] ?? 0)));
+        $ageGroupItems = collect(is_array($request->age_group_items ?? null) ? $request->age_group_items : [])
+            ->filter(fn ($item) => max(0, (int) ($item['quantity'] ?? 0)) > 0);
+
+        if ($ageGroupItems->isNotEmpty()) {
+            return $ageGroupItems->sum(fn ($item) => max(0, (int) ($item['quantity'] ?? 0)));
         }
 
-        if ($request->has('selected_seats') && is_array($request->selected_seats)) {
-            return count(array_values(array_unique($request->selected_seats)));
+        $selectedSeats = collect(is_array($request->selected_seats ?? null) ? $request->selected_seats : [])
+            ->filter(fn ($seatId) => filled($seatId))
+            ->unique()
+            ->values();
+
+        if ($selectedSeats->isNotEmpty()) {
+            return $selectedSeats->count();
         }
+
         return (int) ($request->quantity ?? 1);
     }
 

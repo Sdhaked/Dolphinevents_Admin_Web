@@ -195,7 +195,7 @@ class EventController extends Controller
             ->whereIn('booking_status', $this->activeBookingStatusesForAvailability());
 
         if ($excludeBookingId) {
-            $query->whereKeyNot($excludeBookingId);
+            $query->where('id', '!=', $excludeBookingId);
         }
 
         return max(0, (int) $ticketType->total_tickets - (int) $query->sum('qty'));
@@ -769,7 +769,7 @@ class EventController extends Controller
 
                 if ($allowPendingPayment) {
                     $query->orWhere(function ($pendingQuery) {
-                        $pendingQuery->where('payment_status', 'pending')
+                        $pendingQuery->where('payment_status', 'unpaid')
                             ->where('booking_status', TicketCounter::STATUS_PENDING_PAYMENT);
                     });
                 }
@@ -1169,7 +1169,7 @@ class EventController extends Controller
                     'mobile_number' => $request->phone,
                     'country_id' => $request->country_id,
                     'state_id' => $request->state_id,
-                    'payment_status' => 'pending',
+                    'payment_status' => 'unpaid',
                     'booking_status' => TicketCounter::STATUS_PENDING_PAYMENT,
                     'refund_status' => TicketCounter::REFUND_PENDING,
                     'payment_method' => $quote['final_amount'] <= 0 ? 'free' : 'stripe',
@@ -1208,6 +1208,7 @@ class EventController extends Controller
                     'payment_started_at' => null,
                     'pending_ticket_counter_id' => $booking->id,
                     'checkout_started_at' => now(),
+                    'expires_at' => $this->checkoutHoldExpiresAt(),
                 ]);
 
                 return $booking->fresh();
@@ -1256,7 +1257,7 @@ class EventController extends Controller
         }
     }
 
-    private function prepareCheckoutQuote(Event $event, TicketType $ticketType, TicketHold $hold, array $input): array
+    private function prepareCheckoutQuote(Event $event, TicketType $ticketType, TicketHold $hold, array $input, ?int $excludeBookingId = null): array
     {
         $selectedSeats = $this->normalizeSelectedSeats($hold->selected_seats);
         $quantity = max(1, (int) ($input['quantity'] ?? $hold->quantity ?? 1));
@@ -1292,7 +1293,9 @@ class EventController extends Controller
                 }
 
                 $maxPerBooking = max(1, (int) $ageGroup->max_quantity_per_booking);
-                $requestedQuantity = min($requestedQuantity, $maxPerBooking);
+                if ($requestedQuantity > $maxPerBooking) {
+                    throw new \RuntimeException("Maximum {$maxPerBooking} {$ageGroup->label} tickets are allowed per booking.");
+                }
 
                 if ((int) $ageGroup->total_tickets > 0) {
                     $sold = TicketCounterAgeGroup::where('ticket_type_age_group_id', $ageGroup->id)
@@ -1332,6 +1335,11 @@ class EventController extends Controller
             $ticketSubtotal = array_sum(array_column($ageGroupItems, 'total'));
         }
 
+        $availableTickets = $this->availableTicketQuantity($ticketType, $excludeBookingId);
+        if ($quantity > $availableTickets) {
+            throw new \RuntimeException("Only {$availableTickets} tickets remaining.");
+        }
+
         $serviceItems = [];
         $requestedServices = collect($input['service_items'] ?? [])
             ->mapWithKeys(fn ($item) => [(int) ($item['id'] ?? 0) => max(0, (int) ($item['quantity'] ?? 0))]);
@@ -1352,7 +1360,10 @@ class EventController extends Controller
                 continue;
             }
 
-            $requestedQuantity = min($requestedQuantity, max(1, (int) $service->max_buy_limit));
+            $maxServiceQuantity = max(1, (int) $service->max_buy_limit);
+            if ($requestedQuantity > $maxServiceQuantity) {
+                throw new \RuntimeException("Maximum {$maxServiceQuantity} {$service->name} services are allowed per booking.");
+            }
 
             if ((int) $service->available_quantity > 0) {
                 $sold = TicketCounterService::where('event_service_id', $service->id)
@@ -2103,6 +2114,49 @@ class EventController extends Controller
                 ->with('error', 'Checkout session expired. Please start again.');
         }
 
+        if (!$event) {
+            return redirect()->route('website.events.index')
+                ->with('error', 'Event not found. Please start again.');
+        }
+
+        try {
+            $ticketType = TicketType::with(['bulkDiscounts', 'ageGroups'])->findOrFail($booking->ticket_type_id);
+            $quote = $this->prepareCheckoutQuote(
+                $event,
+                $ticketType,
+                $hold,
+                $this->quoteInputFromHold($booking, $hold),
+                $booking->id
+            );
+
+            $booking->update([
+                'qty' => $quote['quantity'],
+                'bulk_discount_applied' => $quote['bulk_discount_applied'],
+                'coupon_applied' => $quote['coupon_applied'],
+                'coupon_code' => $quote['coupon_applied'] ? $quote['coupon_code'] : null,
+                'coupon_amount' => $quote['discount_amount'],
+                'coupon_percentage' => $quote['discount_percentage'],
+                'total_amount' => $quote['final_amount'],
+                'payment_method' => $quote['final_amount'] <= 0 ? 'free' : 'stripe',
+            ]);
+
+            $hold->update([
+                'quantity' => $quote['quantity'],
+                'coupon_code' => $quote['coupon_code'],
+                'service_items' => $quote['service_items'],
+                'age_group_items' => $quote['age_group_items'],
+                'parking_slots' => $quote['parking_slots'],
+                'car_details' => $quote['car_details'],
+                'total_amount' => $quote['final_amount'],
+                'expires_at' => $this->checkoutHoldExpiresAt(),
+            ]);
+
+            $booking->refresh();
+            $hold->refresh();
+        } catch (\RuntimeException $e) {
+            return $this->renderPrePaymentIssue($booking, $hold, $e->getMessage());
+        }
+
         $finalAmount = (float) $booking->total_amount;
         $currencyCode = Currency::codeForEvent($event);
 
@@ -2135,7 +2189,20 @@ class EventController extends Controller
             }
         }
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        $stripeSecret = trim((string) config('services.stripe.secret'));
+        if ($stripeSecret === '') {
+            Log::error('Verified Stripe checkout blocked because Stripe secret is missing', [
+                'booking_id' => $booking->booking_id,
+            ]);
+
+            return $this->renderPrePaymentIssue(
+                $booking,
+                $hold,
+                'Payment gateway is not configured. Please contact support.'
+            );
+        }
+
+        Stripe::setApiKey($stripeSecret);
 
         $paymentTransaction = PaymentTransaction::create([
             'ticket_counter_id' => $booking->id,
@@ -2218,11 +2285,57 @@ class EventController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return redirect()->route('website.events.checkout.prepay.verify', $booking->booking_id)
-                ->with('error', 'Unable to start payment right now. Please try again.');
+            return $this->renderPrePaymentIssue(
+                $booking,
+                $hold,
+                'Unable to start payment right now. Please try again.'
+            );
         }
 
         return redirect()->away($session->url);
+    }
+
+    private function renderPrePaymentIssue(TicketCounter $booking, ?TicketHold $hold, string $message)
+    {
+        $event = Event::find($booking->event_id);
+        $maskedEmail = $this->maskEmail($booking->email);
+        $resendWaitSeconds = 0;
+        $showOtpForm = false;
+        $bookingId = $booking->booking_id;
+        $verificationFlow = 'checkout';
+        $allowEmailChange = false;
+        $pageTitle = 'Payment Issue';
+        $eventTitle = $event?->title ?? 'Event';
+        $backUrl = $hold?->token
+            ? route('website.events.checkout', $hold->token)
+            : ($event?->slug ? route('website.events.show', $event->slug) : route('website.events.index'));
+        $sendOtpUrl = null;
+        $verifyOtpUrl = null;
+        $resendOtpUrl = null;
+        $changeEmailUrl = null;
+        $resetUrl = null;
+        $paymentIssueMessage = $message;
+        $paymentRetryUrl = route('website.events.checkout.payment', $booking->booking_id);
+
+        return view('website.events.email-verifaction', compact(
+            'event',
+            'showOtpForm',
+            'bookingId',
+            'maskedEmail',
+            'resendWaitSeconds',
+            'verificationFlow',
+            'allowEmailChange',
+            'pageTitle',
+            'eventTitle',
+            'backUrl',
+            'sendOtpUrl',
+            'verifyOtpUrl',
+            'resendOtpUrl',
+            'changeEmailUrl',
+            'resetUrl',
+            'paymentIssueMessage',
+            'paymentRetryUrl'
+        ));
     }
 
     public function checkoutEmailVerification(string $booking_id)
@@ -2521,7 +2634,7 @@ class EventController extends Controller
         return TicketCounter::where('booking_id', trim($bookingId))
             ->where(function ($query) {
                 $query->where(function ($pendingQuery) {
-                    $pendingQuery->where('payment_status', 'pending')
+                    $pendingQuery->where('payment_status', 'unpaid')
                         ->where('booking_status', TicketCounter::STATUS_PENDING_PAYMENT);
                 })->orWhere(function ($paidQuery) {
                     $paidQuery->where('payment_status', 'paid')
@@ -2884,13 +2997,32 @@ class EventController extends Controller
             throw new \RuntimeException('Payment was not completed.');
         }
 
-        $ticketType = TicketType::findOrFail($booking->ticket_type_id);
+        $ticketType = TicketType::with(['bulkDiscounts', 'ageGroups'])->findOrFail($booking->ticket_type_id);
+        $event = Event::findOrFail($booking->event_id);
         $selectedSeats = $this->normalizeSelectedSeats($hold->selected_seats);
         $quantity = max(1, (int) ($booking->qty ?: $hold->quantity));
         $carNumbers = $this->normalizeCarDetails($hold->car_details ?? []);
         $parkingSlots = max(0, (int) ($hold->parking_slots ?? 0));
         $serviceItems = is_array($hold->service_items) ? $hold->service_items : (json_decode((string) $hold->service_items, true) ?: []);
         $ageGroupItems = is_array($hold->age_group_items) ? $hold->age_group_items : (json_decode((string) $hold->age_group_items, true) ?: []);
+
+        $quote = $this->prepareCheckoutQuote(
+            $event,
+            $ticketType,
+            $hold,
+            $this->quoteInputFromHold($booking, $hold),
+            $booking->id
+        );
+
+        if (abs((float) $booking->total_amount - (float) $quote['final_amount']) > 0.01) {
+            throw new \RuntimeException('Booking amount changed before confirmation. Please contact support for review.');
+        }
+
+        $quantity = $quote['quantity'];
+        $carNumbers = $quote['car_details'];
+        $parkingSlots = $quote['parking_slots'];
+        $serviceItems = $quote['service_items'];
+        $ageGroupItems = $quote['age_group_items'];
 
         if ($booking->coupon_applied && $booking->coupon_code) {
             $coupon = \App\Models\DiscountCoupon::where('coupon_code', $booking->coupon_code)
@@ -3475,10 +3607,24 @@ class EventController extends Controller
             return redirect()->route('website.home.index');
         }
 
-        if ($booking->booking_status !== TicketCounter::STATUS_CONFIRMED || !$booking->email_verified_at || !$booking->ticket_email_sent_at) {
+        if ($booking->booking_status !== TicketCounter::STATUS_CONFIRMED || !$booking->email_verified_at) {
             return redirect()
-                ->route('website.events.checkout.verify', $booking->booking_id)
-                ->with('warning', 'Please verify your email to receive your tickets.');
+                ->route('website.events.checkout.prepay.verify', $booking->booking_id)
+                ->with('warning', 'Please verify your email before viewing booking confirmation.');
+        }
+
+        if (!$booking->ticket_email_sent_at) {
+            try {
+                $this->sendConfirmedTicketEmail($booking);
+                $booking->refresh();
+            } catch (\Throwable $e) {
+                Log::error('Ticket email retry failed on thank-you page', [
+                    'booking_id' => $booking->booking_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                session()->flash('warning', 'Booking confirmed, but ticket email could not be sent. Please contact support.');
+            }
         }
 
         if (session()->has($this->checkoutSuccessViewedSessionKey($booking))) {

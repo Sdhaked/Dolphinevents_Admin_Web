@@ -86,7 +86,32 @@
 
                 <div class="voting-container" data-aos="fade-up">
                     <div id="otpStepBox">
-                        @if (!$showOtpForm)
+                        @if (!empty($paymentIssueMessage))
+                            <div class="otp-section">
+                                <div class="tag-box flex justify-center" style="margin-bottom:0.8rem;">
+                                    <span class="tag">Booking Id: {{ $bookingId }}</span>
+                                </div>
+
+                                <div class="all-text-center">
+                                    <h3 class="hd-prim">Payment Issue</h3>
+                                    @if (!empty($eventTitle))
+                                        <p style="font-size:0.82rem;">{{ $eventTitle }}</p>
+                                    @endif
+                                </div>
+
+                                <div class="otp-sent-text"
+                                    style="margin-bottom:1rem; color: var(--color-status-red); font-weight:700; text-align:center;">
+                                    {{ $paymentIssueMessage }}
+                                </div>
+
+                                @if (!empty($paymentRetryUrl))
+                                    <a href="{{ $paymentRetryUrl }}"
+                                        class="btn-md btn-prim hover-prim-outline btn-w-full no-transform">
+                                        Retry Payment <i class="fa-solid fa-arrow-right-long i-ml"></i>
+                                    </a>
+                                @endif
+                            </div>
+                        @elseif (!$showOtpForm)
                             <div class="all-text-center">
                                 <h3 class="hd-prim">Enter: Booking ID</h3>
                                 <p style="font-size: 0.82rem;">{{ $eventTitle ?? $event?->title }}</p>

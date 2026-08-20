@@ -71,6 +71,9 @@
             }
 
         $canShowEventTimer = $eventEndAt && now()->lessThanOrEqualTo($eventEndAt);
+        $bookingStartUrl = ((int) ($event?->type ?? 1) === 2 && config('entities.event_booking_systems.show_selection', false))
+            ? route('website.events.event_venue', $event->slug)
+            : route('website.events.event_tickets', $event->slug);
     @endphp
     <!-- Preloader -->
     @include('website._partials.preloader')
@@ -135,7 +138,7 @@
                                 @if($event?->sell_tickets_till && now()->format('Y-m-d H:i') <= $event->sell_tickets_till->format('Y-m-d H:i'))
                                     <div>
                                         <div data-aos="zoom-in" data-aos-delay="550">
-                                            <a href="{{ route('website.events.event_venue', $event->slug) }}" role="button"
+                                            <a href="{{ $bookingStartUrl }}" role="button"
                                                 class="btn-md btn-prim hover-prim-outline">
                                                 Book Ticket <i class="fa-solid fa-ticket i-ml"></i>
                                             </a>

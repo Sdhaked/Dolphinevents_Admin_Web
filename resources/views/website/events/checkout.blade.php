@@ -49,6 +49,63 @@
             outline: none;
             box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.18);
         }
+
+        .checkout-btn-spinner {
+            display: none;
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: checkoutSpin 0.75s linear infinite;
+            vertical-align: -0.15rem;
+        }
+
+        #checkoutSubmitBtn.is-loading .checkout-btn-spinner {
+            display: inline-block;
+        }
+
+        .checkout-page-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .checkout-page-loader.is-visible {
+            display: flex;
+        }
+
+        .checkout-loader-card {
+            min-width: 180px;
+            padding: 1.5rem 1.75rem;
+            text-align: center;
+            color: #14172b;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(20, 23, 43, 0.18);
+        }
+
+        .checkout-loader-spinner {
+            width: 2.4rem;
+            height: 2.4rem;
+            margin: 0 auto 0.75rem;
+            border: 3px solid rgba(226, 35, 38, 0.18);
+            border-top-color: #e22326;
+            border-radius: 50%;
+            animation: checkoutSpin 0.8s linear infinite;
+        }
+
+        @keyframes checkoutSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 
 
@@ -328,13 +385,22 @@
                           <p>Loading bill..</p>
                         </div>
 
-                        <button type="submit" form="checkoutForm" class="btn-md btn-sec btn-w-full">
-                            Make Payment
+                        <button type="submit" form="checkoutForm" class="btn-md btn-sec btn-w-full" id="checkoutSubmitBtn">
+                            <span class="checkout-btn-spinner" aria-hidden="true"></span>
+                            <span class="checkout-btn-label">Continue to Email Verification</span>
                         </button>
                     </div>
                 </div>
             </div>
         </section>
+
+        <div class="checkout-page-loader" id="checkoutPageLoader" aria-hidden="true">
+            <div class="checkout-loader-card">
+                <div class="checkout-loader-spinner"></div>
+                <strong>Please wait...</strong>
+                <p class="mb-0">Starting email verification</p>
+            </div>
+        </div>
     </main>
 
     <!-- Remove selected Seat Modal -->
@@ -407,18 +473,23 @@ const TICKET_TYPE_ID = {{ $checkout['ticket_type_id'] }};
 const STATES_ENDPOINT_TEMPLATE = "{{ route('website.events.checkout.states', ['countryId' => '__COUNTRY__']) }}";
 const CHECKOUT_CSRF_REFRESH_URL = @json(route('website.csrf_token'));
 
-let currentQuantity = {{ $checkout['quantity'] ?? 'null' }};
+let currentQuantity = Number(@json((int) ($checkout['quantity'] ?? 1))) || 1;
 let lastAvailableTickets = 0;
 let appliedCoupon = null;
 let bulkDiscountActive = false;
 let pendingSeatToRemove = null;
 let checkoutCsrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
 const checkoutForm = document.getElementById('checkoutForm');
+const checkoutSubmitBtn = document.getElementById('checkoutSubmitBtn');
+const checkoutSubmitLabel = checkoutSubmitBtn?.querySelector('.checkout-btn-label');
+const checkoutPageLoader = document.getElementById('checkoutPageLoader');
 const removeCheckoutSeatModalElement = document.getElementById('removeCheckoutSeatModal');
 const confirmRemoveCheckoutSeatBtn = document.getElementById('confirmRemoveCheckoutSeatBtn');
 const checkoutAlertModalElement = document.getElementById('checkoutAlertModal');
 const checkoutAlertTitle = document.getElementById('checkoutAlertTitle');
 const checkoutAlertMessage = document.getElementById('checkoutAlertMessage');
+let checkoutSubmitting = false;
+let checkoutRedirecting = false;
 
 function collectAgeGroupItems() {
     return Array.from(document.querySelectorAll('.age-group-qty'))
@@ -451,6 +522,23 @@ function resolveCheckoutQuantity() {
     const quantity = Number(document.getElementById('quantity')?.value || 0);
     currentQuantity = quantity;
     return quantity;
+}
+
+function setCheckoutLoading(isLoading) {
+    checkoutSubmitting = isLoading;
+
+    if (checkoutSubmitBtn) {
+        checkoutSubmitBtn.disabled = isLoading;
+        checkoutSubmitBtn.classList.toggle('is-loading', isLoading);
+        checkoutSubmitBtn.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    }
+
+    if (checkoutSubmitLabel) {
+        checkoutSubmitLabel.textContent = isLoading ? 'Please wait...' : 'Continue to Email Verification';
+    }
+
+    checkoutPageLoader?.classList.toggle('is-visible', isLoading);
+    checkoutPageLoader?.setAttribute('aria-hidden', isLoading ? 'false' : 'true');
 }
 
 function getCheckoutValidationMessage(field) {
@@ -587,6 +675,10 @@ function initializeCheckoutValidation() {
 
     checkoutForm.addEventListener('submit', function(event) {
         event.preventDefault();
+
+        if (checkoutSubmitting) {
+            return;
+        }
 
         if (!validateCheckoutForm()) {
             return;
@@ -782,10 +874,15 @@ function updateSeatsSectionUI() {
 
 
 
-// Start stripe checkout
+// Save checkout details and start email verification before payment.
 function startCheckout() {
+    if (checkoutSubmitting) {
+        return;
+    }
+
     //Ticket qty
     const qty = resolveCheckoutQuantity();
+    setCheckoutLoading(true);
 
     // Collect Car Registration Numbers
     const carNumbers = [];
@@ -813,7 +910,7 @@ function startCheckout() {
         age_group_items: collectAgeGroupItems()
     };
     payload.phone_prefix = document.querySelector('select[name="phone_prefix"]')?.value || '';
-    fetchWithCheckoutCsrf("{{ route('website.events.checkout.stripe') }}", {
+    return fetchWithCheckoutCsrf("{{ route('website.events.checkout.stripe') }}", {
          method: "POST",
          headers: {
              "Content-Type": "application/json",
@@ -852,7 +949,7 @@ function startCheckout() {
                  return null;
              }
 
-             throw new Error(data.message || 'Unable to initiate payment. Please try again.');
+             throw new Error(data.message || 'Unable to continue checkout. Please try again.');
          }
 
          return data;
@@ -861,14 +958,20 @@ function startCheckout() {
          if (!data) return;
 
          if (data.url) {
+             checkoutRedirecting = true;
              window.location.href = data.url;
          } else {
-            showCheckoutAlert('Unable to initiate payment. Please try again.', 'Checkout');
+            showCheckoutAlert('Unable to continue checkout. Please try again.', 'Checkout');
          }
      })
      .catch((error) => {
          console.error('Checkout error:', error);
-         showCheckoutAlert(error.message || 'Unable to initiate payment. Please try again.', 'Checkout');
+         showCheckoutAlert(error.message || 'Unable to continue checkout. Please try again.', 'Checkout');
+     })
+     .finally(() => {
+         if (!checkoutRedirecting) {
+             setCheckoutLoading(false);
+         }
      });
 }
 
@@ -929,7 +1032,7 @@ function updateQuantityOptions(available) {
     if (window.checkoutAgeGroupsEnabled || select?.type === 'hidden') {
         return;
     }
-    const prev = select.value;
+    const preferredQuantity = Number(select.value || currentQuantity || 1);
 
     select.innerHTML = '<option value="">Select Quantity</option>';
 
@@ -944,7 +1047,9 @@ function updateQuantityOptions(available) {
     }
 
     select.disabled = false;
-    if (prev && prev <= available) select.value = prev;
+    const nextQuantity = Math.min(Math.max(preferredQuantity, 1), available);
+    select.value = String(nextQuantity);
+    currentQuantity = nextQuantity;
 }
 
 function handleQuantityChange() {
@@ -1121,7 +1226,12 @@ function removeCoupon() {
    BILL
 ================================ */
 function calculateBill() {
-    if (!currentQuantity) return;
+    const qty = resolveCheckoutQuantity();
+
+    if (!Number.isInteger(qty) || qty <= 0) {
+        resetBill();
+        return;
+    }
 
     // Collect Car Registration Numbers
     const carNumbers = [];
@@ -1135,7 +1245,7 @@ function calculateBill() {
     const payload = {
         event_id: EVENT_ID,
         ticket_type_id: TICKET_TYPE_ID,
-        quantity: currentQuantity,
+        quantity: qty,
         coupon_code: appliedCoupon?.coupon_code ?? null,
         parking_slots: activeSlotsCount || 0,
         car_details: carNumbers,
