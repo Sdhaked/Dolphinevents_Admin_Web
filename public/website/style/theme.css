@@ -1,7 +1,7 @@
 :root {
   /* -- color  */
-  --my-primary: #dc2926;
-  --my-secoundry: #1c2137;
+  --my-primary: #000743;
+  --my-secoundry: #1c2580;
 
   /* Text Colors */
   --color-text-100: #6b6b6b;
@@ -38,8 +38,8 @@
   --transition-ease: all 0.5s ease;
 
   /* -- Font */
-  --font-primary: "Poppins", sans-serif;
-  --font-secoundry: "Special Gothic Expanded One", sans-serif;
+  --font-primary: "Inter", sans-serif;
+  --font-secoundry: "Oswald", sans-serif;
 
   /* --@Animation call */
   --aniTopBot: aniTopBot 3s infinite linear;
@@ -50,7 +50,7 @@
   --nav-link-hover-color: var(--my-secoundry);
   --nav-link-active-color: var(--my-primary);
   --nav-link-f-size: 0.9rem;
-  --nav-logo-width: 10rem;
+  --nav-logo-width: 4rem;
 
   /* Button Transission effect */
   --btn-transform: translateY(-2px);
@@ -95,13 +95,13 @@
   :root {
     --gap-col: 1.75rem;
     --nav-link-color: var(--color-text-200);
-    --nav-logo-width: 7rem;
+    /* --nav-logo-width: 4rem; */
     --nav-link-f-size: 0.75rem;
   }
 }
 @media (max-width: 330px) {
   :root {
-    --nav-logo-width: 6rem;
+    /* --nav-logo-width: 6rem; */
   }
 }
 

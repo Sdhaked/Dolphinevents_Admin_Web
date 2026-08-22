@@ -80,8 +80,8 @@
     <!-- MAIN BODY -->
     <main>
         <!--==================================================
-                                                               HERO SECTION
-                                                        ======================================================-->
+              HERO SECTION
+        ======================================================-->
         @if ($hasHeroSlider || $hasHeroVideo)
             <section style="width:100%">
             @if ($hasHeroSlider)
@@ -95,8 +95,8 @@
                             </div>
                         @endforeach
                     </div>
-                    <div class="swiper-button-next"></div>
-                    <div class="swiper-button-prev"></div>
+                    <!--<div class="swiper-button-next"></div>-->
+                    <!--<div class="swiper-button-prev"></div>-->
                     <div class="swiper-pagination"></div>
                 </div>
             @elseif($hasHeroVideo)
@@ -112,12 +112,13 @@
 
         @if ($content->featured_events->count() > 0)
             <!--==================================================
-                                                               FEATURED EVENTS SECTION
-                                                        ======================================================-->
+                      FEATURED EVENTS SECTION
+            ======================================================-->
             <section class="container-fluid spc-y">
                 <div class="container">
                     <div class="mb-prim">
-                        <h3 class="hd-prim">Our Top <span class="text-prim">{{ $content->featured_events->count() }}</span>
+                        <h3 class="hd-prim">Our Top 
+                        <!--<span class="text-prim">{{ $content->featured_events->count() }}</span>-->
                             Events</h3>
                     </div>
                     <div class="grid-archive-4 gap-card">
@@ -164,16 +165,16 @@
 
         @if ($content?->about_heading_text_1 && $content?->about_processed_description && $content?->about_image_path)
             <!--==================================================
-                                                               MINI ABOUT SECTION
-                                                        ======================================================-->
+                   MINI ABOUT SECTION
+            ======================================================-->
             <section class="container-fluid spc-y bg-devider mini-about-sec">
                 <div class="container">
-                    <div class="grid-sec-40-60 gap-col">
+                    <div class="grid-sec-2 gap-col">
                         <div>
                             <div class="img-holder">
                                 <img src="{{ asset('storage/' . $content->about_image_path) }}"
                                     alt="{{ $content->about_image_alt }}" loading="lazy" decoding="async" />
-                                <span></span>
+                            
                             </div>
                         </div>
                         <div>
@@ -197,9 +198,9 @@
         @endif
 
         @if ($content?->info_slider->count() > 0)
-            <!--==================================================
-                                                               INFO SLIDER SECTION
-                                                    ======================================================-->
+        <!--==================================================
+                            INFO SLIDER SECTION
+        ======================================================-->
             <section class="container-fluid spc-y">
                 <div class="container">
                     <!-- Slider container -->
@@ -227,8 +228,8 @@
         @endif
 
         <!--==================================================
-                                                               ACTIVE EVENTS SLIDER SECTION
-                                                    ======================================================-->
+                 ACTIVE EVENTS SLIDER SECTION
+       ======================================================-->
         @if ($hasActiveTodayEvents)
         <section class="container-fluid spc-y active-events-sec">
             <div class="container">
@@ -347,8 +348,8 @@
         @endif
 
         <!--==================================================
-                                                              PAST EVENTS SECTION
-                                                        ======================================================-->
+                     PAST EVENTS SECTION
+    ======================================================-->
         @if ($hasPastEvents)
         <section class="container-fluid spc-y">
             <div class="container">
@@ -370,33 +371,22 @@
         @endif
 
         @if ($content?->event_count > 0)
-            <!--================================================== CALL TO ACTION SECTION ======================================================-->
+            <!--================================================== 
+            CALL TO ACTION SECTION 
+            ======================================================-->
             <section class="container-fluid spc-y-half calltoaction-sec">
                 <div class="container">
                     <div class="row">
-                        <div style="display: flex; flex-direction: column; justify-content: center;">
-                            <h3 class="hd-prim">We have Organized <span
-                                    class="text-prim">{{ $content?->event_count-1 }}+</span> Events</h3>
-                            <p>From concerts to cultural festivals, we bring Ireland's most exciting experiences to life. Trust us to make your next event seamless, memorable, and full of joy.</p>
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <h3 class="hd-prim">Experianced With <span
+                                    style="color: #ffbf00;">{{ $content?->event_count-1 }}+</span> Events! _ Want To Organize Event with us?</h3>
+                            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Corporis distinctio ipsam quaerat, ut necessitatibus quis recusandae impedit, beatae, ratione vel deserunt suscipit fugit ipsa blanditiis enim praesentium. Sint, necessitatibus quod!</p>
                             <div>
-                                <a href="{{ route('website.contact.index') }}" class="btn-md btn-link mt-prim">CONTACT US
+                                <a href="{{ route('website.contact.index') }}" class="btn-md btn-prim-outline hover-prim-prim mt-prim">CONTACT US
                                     <i class="fa-solid fa-arrow-right-long i-ml"></i></a>
                             </div>
                         </div>
-                        <div class="img-col">
-                            <div>
-                                <div class="holder overflow-hidden">
-                                    <div class="overlay">
-                                        <div>
-                                            <h4>{{ $content?->event_count-1 }}+</h4>
-                                            <h6>EVENTS</h6>
-                                        </div>
-                                    </div>
-                                    <img src="https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                                        alt="" loading="lazy" decoding="async" />
-                                </div>
-                            </div>
-                        </div>
+                        
                     </div>
 
                 </div>
@@ -405,12 +395,12 @@
 
         @if ($content?->gallery->count() > 0)
             <!--==================================================
-                                                               GALLERY SECTION
-                                                    ======================================================-->
+                        GALLERY SECTION
+            ======================================================-->
             <section class="container-fluid spc-y">
                 <div class="container">
                     <div class="mb-prim all-text-center">
-                        <h3 class="hd-prim">OUR event memories</h3>
+                        <h3 class="hd-prim">past event memories</h3>
                     </div>
                     <div class="grid-archive-4 gap-card" id="homeGalleryGrid" data-aos="fade-up">
                         @include('website.home._partials.gallery-items', ['images' => $content->gallery])

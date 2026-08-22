@@ -1,27 +1,15 @@
 /*++++++++++++++++++++++++++++++
         MINI ABOUT SECTION  
 ++++++++++++++++++++++++++++++++*/
-.mini-about-sec .img-holder {
+/* .mini-about-sec .img-holder {
   position: relative;
-  width: 80%;
+  width: 100%;
   height: 100%;
-}
+} */
 .mini-about-sec .img-holder img {
   border-radius: var(--radius-sec);
-  height: 100%;
-  object-fit: cover;
-}
-.mini-about-sec .img-holder span {
-  position: absolute;
-  height: 40%;
-  width: 30%;
-  bottom: -2rem;
-  right: -1rem;
-  border-radius: var(--radius-sec);
-  background: var(--my-primary);
-  z-index: +1;
-  opacity: 0.8;
-  animation: floatUpDown 3s ease-in-out infinite;
+  /* height: 100%;
+  object-fit: cover; */
 }
 @keyframes floatUpDown {
   0% {
@@ -38,8 +26,12 @@
 /*++++++++++++++++++++++++++++++
         MINI INFO SECTION  
 ++++++++++++++++++++++++++++++++*/
-.infoSlider {
-  border-radius: var(--radius-sec);
+.infoSlider .swiper-slide{
+  border-radius: var(--radius-sec) !important;
+  overflow: hidden;
+}
+.infoSlider .swiper-slide a{
+  display: block;
 }
 
 /*++++++++++++++++++++++++++++++
@@ -81,77 +73,32 @@
         CALL TO ACTION SECTION  
 ++++++++++++++++++++++++++++++++*/
 .calltoaction-sec {
-  background: var(--color-bg-toggle);
+  /* background: var(--color-bg-toggle); */
   color: var(--color-text-toggle);
+
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+    url('http://127.0.0.1:8000/website/images/bgevent.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
-.calltoaction-sec .row {
+/* .calltoaction-sec .row {
   display: flex;
   gap: var(--gap-col);
-}
+} */
 
 .calltoaction-sec .hd-prim,
 .calltoaction-sec p {
   color: var(--color-text-toggle);
+  text-align: center;
 }
 
-.calltoaction-sec .img-col {
-  flex-shrink: 0;
-  margin-top: -5rem;
-}
-.calltoaction-sec .img-col > div {
-  border-radius: 100%;
-  width: 300px;
-  height: 300px;
-  padding: 0.4rem;
-  background: var(--my-primary);
-  transform: rotate(5deg);
-  transition: var(--transition-linear);
-}
-.calltoaction-sec .img-col > div:hover {
-  transform: rotate(10deg);
-}
-.calltoaction-sec .img-col > div .holder {
-  border-radius: 100%;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  padding-top: 100%;
-  background: red;
-  margin-top: -0.2rem;
-}
-.calltoaction-sec .img-col > div .holder img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-radius: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.calltoaction-sec .img-col > div .holder .overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.629);
-  z-index: +1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.calltoaction-sec .img-col > div .holder .overlay h4 {
-  --fs: 4rem;
-  text-align: center;
-  font-size: var(--fs);
-  line-height: calc(var(--fs) + 0.2rem);
-}
-.calltoaction-sec .img-col > div .holder .overlay h6 {
-  text-align: center;
-  font-family: var(--font-secoundry);
-  font-weight: 600;
-  color: var(--my-primary);
+.calltoaction-sec p {
   font-size: 1rem;
+  line-height: 1.5rem;
 }
+
 .calltoaction-sec .btn-link {
   color: var(--color-text-toggle);
 }
@@ -162,15 +109,6 @@
 @media (max-width: 800px) {
   .calltoaction-sec .row {
     flex-direction: column-reverse;
-  }
-
-  .calltoaction-sec .img-col {
-    margin-top: -2.5rem;
-  }
-
-  .calltoaction-sec .img-col > div {
-    width: 17rem;
-    height: 17rem;
   }
 }
 
