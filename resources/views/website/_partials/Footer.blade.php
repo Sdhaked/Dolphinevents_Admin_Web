@@ -13,7 +13,7 @@
             <!-- Box 1 -->
             <div class="box-1">
                 <div>
-                    <img src="{{ asset('website/images/logo-w.svg') }}" alt="Dolphinevent logo" class="f-logo" />
+                    <img src="{{ asset('website/images/logo.svg') }}" alt="Dolphinevent logo" class="f-logo" />
                 </div>
                 <ul>
                     @include('website._partials.footer-menu')
@@ -25,9 +25,7 @@
             <div class="box-2">
                 <h4 class="title">Dolphinevent</h4>
                
-                    <p>
-                        We simplify online seat reservations, offering seamless, reliable, and efficient booking experiences tailored to your needs.
-                    </p>
+                    <p>We make event ticket sales and bookings simple and seamless. Sell your event tickets, manage bookings, and offer a smooth experience for your attendees. Start today!</p>
               
                 <ul class="i-list">
                     @if ($contact?->email)
