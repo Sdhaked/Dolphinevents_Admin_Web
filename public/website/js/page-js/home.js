@@ -9,10 +9,10 @@ const heroSwiper = new Swiper(".heroSwiper", {
     delay: 2500,
     disableOnInteraction: true,
   },
-  navigation: {
-    nextEl: ".swiper-button-next",
-    prevEl: ".swiper-button-prev",
-  },
+  // navigation: {
+  //   nextEl: ".swiper-button-next",
+  //   prevEl: ".swiper-button-prev",
+  // },
   pagination: {
     el: ".swiper-pagination",
     dynamicBullets: true,
@@ -30,6 +30,13 @@ const infoSlider = new Swiper(".infoSlider", {
   autoplay: {
     delay: 2500,
     disableOnInteraction: true,
+  },
+  spaceBetween: 20,
+  slidesPerView: 1,
+   breakpoints: {
+    1024: {
+      slidesPerView: 2,
+    },
   },
 });
 

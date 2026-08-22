@@ -755,7 +755,7 @@
   font-weight: 500;
   padding: 0.94rem 1.44rem;
   font-size: 0.88rem;
-  border-radius: 50px;
+  border-radius: 0;
   text-align: center;
   color: var(--color-text-100);
   display: inline-block;
@@ -767,7 +767,7 @@
   font-weight: 500;
   padding: 0.6rem 1.2rem;
   font-size: 0.81rem;
-  border-radius: 50px;
+  border-radius: 0;
   text-align: center;
   color: var(--color-text-100);
   display: inline-block;
@@ -780,7 +780,7 @@
   letter-spacing: 1px;
   padding: 0.4rem 0.85rem;
   font-size: 0.75rem;
-  border-radius: 50px;
+  border-radius: 0;
   color: var(--color-text-100);
   text-align: center;
   text-transform: capitalize;

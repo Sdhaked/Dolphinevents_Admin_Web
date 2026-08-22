@@ -17,7 +17,8 @@
   width: 100%;
 }
 .auth-box .logo-img {
-  width: 10rem;
+  width: 100%;
+  max-width: 7rem;
   margin: auto;
 }
 
@@ -39,9 +40,9 @@
 }
 
 .auth-helper-text {
-  color: #b8cdf0;
-  font-size: 0.92rem;
-  margin: 1rem 0 0.75rem;
+  font-size: 0.7rem;
+  margin: 0.8rem 0 0;
+  text-align: center;
 }
 
 .auth-form {
@@ -61,13 +62,16 @@
 
 .auth-otp-actions .btn-link {
   border: 0;
-  color: #b58bff;
+  color: var(--color-text-200);
   padding: 0;
+  font-weight: 500;
+  font-size: 0.7rem;
   text-decoration: none;
+  transition: var(--transition-linear);
 }
 
 .auth-otp-actions .btn-link:hover {
-  color: #ffffff;
+  color: var(--color-text-100);
 }
 
 .auth-otp-actions .btn-link:disabled {

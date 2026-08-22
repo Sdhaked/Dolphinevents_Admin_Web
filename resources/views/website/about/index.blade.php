@@ -126,7 +126,9 @@ document.addEventListener("DOMContentLoaded", function () {
             </section>
         @endif
 
-        <!--================================================== COUNT SECTION ======================================================-->
+        <!--================================================== 
+        COUNT SECTION 
+        ======================================================-->
         <section class="container-fluid spc-y-half count-sec">
             <div class="container">
                 <div class="grid-auto item-center gap-card myCounter">

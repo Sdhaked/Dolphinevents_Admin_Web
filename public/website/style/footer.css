@@ -25,8 +25,7 @@ footer .foot-top .box-1 {
 }
 
 footer .foot-top .box-1 .f-logo {
-  height: 2rem;
-  width: auto;
+  width: 4rem;
 }
 
 footer .foot-top .box-1 ul {
@@ -46,7 +45,7 @@ footer .foot-top .box-1 ul .nav-link {
   text-transform: capitalize;
 }
 footer .foot-top .box-1 ul .nav-link.active {
-  color: var(--my-primary);
+  color: rgb(12, 190, 235);
 }
 
 /* ==> F-top > Box 2 */
@@ -63,8 +62,7 @@ footer .foot-top .box-2 .title {
   font-weight: 500;
   font-family: var(--font-primary);
 }
-footer .foot-top .box-2 p {
-}
+
 footer .foot-top .box-2 .i-list {
   list-style: none;
   padding: 0;
