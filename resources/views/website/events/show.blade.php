@@ -1,11 +1,7 @@
 @extends('layouts.website')
 
 @section('head')
-    @if (empty($event?->meta_data))
-        <title>Event Details</title>
-    @else
-        {!! $event->meta_data !!}
-    @endif
+    @include('website._partials.head.meta-data', ['metaData' => $event?->meta_data, 'fallbackTitle' => 'Event Details'])
 
     <!-- #=======> Head Files -->
     @include('website._partials.head.head-files')

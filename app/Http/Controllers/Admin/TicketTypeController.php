@@ -170,6 +170,7 @@ class TicketTypeController extends Controller
         $validated['total_tickets'] = $ageGroupTotal > 0
             ? $ageGroupTotal
             : ($totalTicketsCount > 0 ? $totalTicketsCount : ($request->input('total_tickets') ?? 0));
+        $validated['ticket_price'] = $request->has('enable_age_group') ? 0 : $validated['ticket_price'];
         $validated['ticket_type_color'] = $request->input('ticket_type_color');
 
         // Handle featured image upload
@@ -375,6 +376,7 @@ class TicketTypeController extends Controller
         $validated['total_tickets'] = $ageGroupTotal > 0
             ? $ageGroupTotal
             : ($isSeatSelectionUpdate ? count($finalSeatIds) : ($request->input('total_tickets') ?? $ticket->total_tickets));
+        $validated['ticket_price'] = $request->has('enable_age_group') ? 0 : $validated['ticket_price'];
         $validated['ticket_type_color'] = $request->input('ticket_type_color');
         $validated['updated_by'] = Auth::id();
 

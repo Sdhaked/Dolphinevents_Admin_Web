@@ -191,7 +191,7 @@ class TicketCounterApiController extends Controller
         $eventId = $request->event_id ?? session('active_event_id');
         $couponCode = $request->coupon_code;
         $ticketTypeId = $request->ticket_type_id;
-        $quantity = $request->quantity ?? 1;
+        $quantity = $this->getResolvedQuantity($request);
 
         // Fetch ticket type
         $ticketType = TicketType::findOrFail($ticketTypeId);
@@ -229,8 +229,7 @@ class TicketCounterApiController extends Controller
         $allowedTicketTypes = $coupon->ticket_type_ids;
 
         if (!empty($allowedTicketTypes)
-            && !in_array($ticketTypeId, $allowedTicketTypes)
-            && !in_array((string)$ticketTypeId, $allowedTicketTypes)
+            && !in_array((int) $ticketTypeId, array_map('intval', $allowedTicketTypes), true)
         ) {
             return response()->json([
                 'success' => false,
@@ -323,7 +322,10 @@ class TicketCounterApiController extends Controller
 
         if (!$bulkDiscountApplied && $couponCode) {
             $coupon = DiscountCoupon::where('event_id', $eventId)->where('coupon_code', $couponCode)->first();
-            if ($coupon && (empty($coupon->ticket_type_ids) || in_array($ticket_type_id, $coupon->ticket_type_ids))) {
+            $couponTicketTypes = $coupon?->ticket_type_ids ?? [];
+            $couponApplies = $coupon && (empty($couponTicketTypes) || in_array((int) $ticket_type_id, array_map('intval', $couponTicketTypes), true));
+
+            if ($couponApplies) {
                 $couponApplied = true;
                 $appliedDiscountPercentage = $coupon->discount;
                 $discountAmount = ($subtotal * $appliedDiscountPercentage) / 100;

@@ -2,11 +2,7 @@
 
 @section('head')
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @if (empty($event?->meta_data))
-        <title>Event Venue layout</title>
-    @else
-        {!! $event->meta_data !!}
-    @endif
+    @include('website._partials.head.meta-data', ['metaData' => $event?->meta_data, 'fallbackTitle' => 'Event Venue layout'])
     
     <!-- #=======> Head Files -->
     @include('website._partials.head.head-files')
@@ -104,6 +100,33 @@
         @keyframes checkoutSpin {
             to {
                 transform: rotate(360deg);
+            }
+        }
+
+        .age-group-checkout-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .age-group-checkout-meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 576px) {
+            .age-group-checkout-row {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .age-group-checkout-meta {
+                justify-content: flex-start;
+                width: 100%;
             }
         }
     </style>
@@ -212,20 +235,22 @@
                                 <div class="grid-1 gap-card">
                                     @foreach($ageGroups as $ageGroup)
                                         <div class="style-box">
-                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-card">
+                                            <div class="age-group-checkout-row">
                                                 <div>
                                                     <h6 class="hd-sm mb-1">{{ $ageGroup->label }}</h6>
-                                                    <p class="mb-0">{{ $event->currency_symbol }}{{ number_format((float) $ageGroup->price, 2) }}/- per ticket</p>
                                                 </div>
-                                                <div class="select-box" style="min-width: 160px;">
-                                                    <i class="fa-solid fa-angle-down arrow-i"></i>
-                                                    <select class="age-group-qty" data-id="{{ $ageGroup->id }}"
-                                                        data-label="{{ $ageGroup->label }}"
-                                                        data-compulsory="{{ $ageGroup->is_compulsory ? 1 : 0 }}">
-                                                        @for($i = $ageGroup->is_compulsory ? 1 : 0; $i <= min((int) $ageGroup->max_quantity_per_booking, 20); $i++)
-                                                            <option value="{{ $i }}">{{ $i }}</option>
-                                                        @endfor
-                                                    </select>
+                                                <div class="age-group-checkout-meta">
+                                                    <p class="mb-0">{{ $event->currency_symbol }}{{ number_format((float) $ageGroup->price, 2) }}/-</p>
+                                                    <div class="select-box" style="min-width: 120px;">
+                                                        <i class="fa-solid fa-angle-down arrow-i"></i>
+                                                        <select class="age-group-qty" data-id="{{ $ageGroup->id }}"
+                                                            data-label="{{ $ageGroup->label }}"
+                                                            data-compulsory="{{ $ageGroup->is_compulsory ? 1 : 0 }}">
+                                                            @for($i = $ageGroup->is_compulsory ? 1 : 0; $i <= min((int) $ageGroup->max_quantity_per_booking, 20); $i++)
+                                                                <option value="{{ $i }}">Qty {{ $i }}</option>
+                                                            @endfor
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -510,9 +535,9 @@ function collectServiceItems() {
 }
 
 function resolveCheckoutQuantity() {
-    const ageGroupItems = collectAgeGroupItems();
-    if (window.checkoutAgeGroupsEnabled && ageGroupItems.length) {
-        const total = ageGroupItems.reduce((sum, item) => sum + item.quantity, 0);
+    if (window.checkoutAgeGroupsEnabled) {
+        const total = Array.from(document.querySelectorAll('.age-group-qty'))
+            .reduce((sum, select) => sum + Number(select.value || 0), 0);
         const quantityInput = document.getElementById('quantity');
         if (quantityInput) quantityInput.value = total;
         currentQuantity = total;
@@ -1084,7 +1109,11 @@ document
 
 document.querySelectorAll('.age-group-qty, .event-service-qty').forEach((field) => {
     field.addEventListener('change', () => {
-        resolveCheckoutQuantity();
+        if (field.classList.contains('age-group-qty')) {
+            handleQuantityChange();
+            return;
+        }
+
         checkBulkDiscount();
     });
 });
@@ -1192,7 +1221,9 @@ function applyCoupon() {
         body: JSON.stringify({
             event_id: EVENT_ID,
             ticket_type_id: TICKET_TYPE_ID,
-            coupon_code: code
+            coupon_code: code,
+            quantity: resolveCheckoutQuantity(),
+            age_group_items: collectAgeGroupItems()
         })
     })
     .then(r => r.json())
@@ -1360,10 +1391,33 @@ function toggleCouponUI(disable) {
 function renderBill(d) {
     // Check if the current hold has selected seats (Seating Event Type 2)
     const isSeatingEvent = window.checkoutSeats.length > 0;
+    const hasAgeGroupItems = Array.isArray(d.age_group_items) && d.age_group_items.length > 0;
     
     let billingHtml = '';
 
-    if (isSeatingEvent) {
+    if (hasAgeGroupItems) {
+        billingHtml = `
+            <tr>
+                <th colspan="2">
+                    <h6 style="color: {{ $ticketType->ticket_type_color ?? 'orange' }}">${d.ticket_title}</h6>
+                    <p>${d.quantity} Tickets</p>
+                </th>
+            </tr>
+            ${d.age_group_items.map(item => `
+                <tr>
+                    <th>
+                        ${item.label}
+                        <p>${item.price}/- <i class="fa-solid fa-xmark i-mr i-ml"></i> ${item.quantity}</p>
+                    </th>
+                    <td>${item.total}/-</td>
+                </tr>
+            `).join('')}
+            <tr>
+                <th>Ticket Subtotal</th>
+                <td>${d.subtotal}/-</td>
+            </tr>
+        `;
+    } else if (isSeatingEvent) {
         // --- SEATING EVENT ROWS (First + Second Row) ---
         billingHtml = `
             <tr>
@@ -1504,7 +1558,7 @@ initializePhoneField();
         }, 200);
 
         createOfferBar(offerComp, slabs);
-        window.debouncedOfferBarFun(1);
+        window.debouncedOfferBarFun(resolveCheckoutQuantity());
     }
 
     initOfferBar();

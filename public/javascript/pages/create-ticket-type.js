@@ -38,14 +38,32 @@ const TicketPrice = document.querySelector("#ticket_price");
 const enable_bulk_discount = document.querySelector("#enable_bulk_discount");
 const add_bulk_discount_btn = document.querySelector("#addBulkDiscountBtn");
 const bulk_discount_toggle = document.querySelector("#bulkDiscountToggle");
-const bulkDiscountDisabledMessage = "Add a valid ticket price first to enable bulk discount.";
+const bulkDiscountDisabledMessage = "Add a valid ticket price or age-group slab amount first to enable bulk discount.";
+
+const getAgeGroupSubtotal = () => {
+  const enableAgeGroup = document.querySelector("#enable-age-group");
+
+  if (!enableAgeGroup?.checked) {
+    return 0;
+  }
+
+  return Array.from(document.querySelectorAll("#ageGroupRows tr")).reduce((sum, row) => {
+    const price = Number(row.querySelector('input[name="age_group_price[]"]')?.value || 0);
+    const quantity = Number(row.querySelector('input[name="age_group_total_tickets[]"]')?.value || 0);
+
+    return sum + (price > 0 && quantity > 0 ? price * quantity : 0);
+  }, 0);
+};
 
 
 const bulkDiscountHandeler = () => 
 {
    if(!enable_bulk_discount || !add_bulk_discount_btn) {console.error("Bulk discount elements not found"); return;}
    
-   if(!TicketPrice.value || TicketPrice.value <= 0) {
+   const hasTicketPrice = Number(TicketPrice?.value || 0) > 0;
+   const hasAgeGroupAmount = getAgeGroupSubtotal() > 0;
+
+   if(!hasTicketPrice && !hasAgeGroupAmount) {
     enable_bulk_discount.checked = false;
     enable_bulk_discount.disabled = true;
     add_bulk_discount_btn.disabled = true;
@@ -65,6 +83,16 @@ const bulkDiscountHandeler = () =>
 
 bulkDiscountHandeler(); // Initial check on page load
 TicketPrice && TicketPrice?.addEventListener("input", bulkDiscountHandeler);
+document.addEventListener("input", (event) => {
+  if (event.target.matches('input[name="age_group_price[]"], input[name="age_group_total_tickets[]"]')) {
+    bulkDiscountHandeler();
+  }
+});
+document.addEventListener("change", (event) => {
+  if (event.target.matches("#enable-age-group")) {
+    bulkDiscountHandeler();
+  }
+});
 
 
 if (createMinOrderQty) {

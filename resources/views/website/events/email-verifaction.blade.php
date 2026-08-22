@@ -1,11 +1,10 @@
 @extends('layouts.website')
 
 @section('head')
-    @if (($verificationFlow ?? 'voting') === 'voting' && !empty($event?->meta_data))
-        {!! $event->meta_data !!}
-    @else
-        <title>{{ $pageTitle ?? 'Email Verification' }}</title>
-    @endif
+    @include('website._partials.head.meta-data', [
+        'metaData' => (($verificationFlow ?? 'voting') === 'voting') ? $event?->meta_data : null,
+        'fallbackTitle' => $pageTitle ?? 'Email Verification',
+    ])
 
     @include('website._partials.head.head-files')
     <link rel="stylesheet" href="{{ asset('website/style/aos.css') }}" />

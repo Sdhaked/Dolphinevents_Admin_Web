@@ -78,8 +78,15 @@
         document.addEventListener('DOMContentLoaded', function () {
             const rows = document.getElementById('ageGroupRows');
             const addBtn = document.getElementById('addAgeGroupRow');
+            const enableAgeGroup = document.getElementById('enable-age-group');
+            const totalTickets = document.getElementById('totaltickets');
+            const ticketPrice = document.getElementById('ticket_price');
+            const ticketPriceBox = ticketPrice?.closest('.input-group');
 
-            if (!rows || !addBtn) return;
+            if (!rows || !addBtn || !enableAgeGroup) return;
+
+            let manualTotalTickets = totalTickets?.value ?? '';
+            let manualTicketPrice = ticketPrice?.value ?? '';
 
             function rowTemplate(index) {
                 return `
@@ -105,9 +112,54 @@
                 });
             }
 
+            function getAgeGroupTotal() {
+                return Array.from(rows.querySelectorAll('input[name="age_group_total_tickets[]"]'))
+                    .reduce((sum, input) => {
+                        const quantity = parseInt(input.value, 10);
+                        return sum + (Number.isNaN(quantity) || quantity < 0 ? 0 : quantity);
+                    }, 0);
+            }
+
+            function syncTicketFields() {
+                const enabled = enableAgeGroup.checked;
+
+                if (totalTickets) {
+                    if (enabled) {
+                        if (!totalTickets.disabled) {
+                            manualTotalTickets = totalTickets.value;
+                        }
+                        totalTickets.value = getAgeGroupTotal();
+                        totalTickets.disabled = true;
+                    } else {
+                        totalTickets.disabled = false;
+                        if (manualTotalTickets !== '') {
+                            totalTickets.value = manualTotalTickets;
+                        }
+                    }
+                }
+
+                if (ticketPrice) {
+                    if (enabled) {
+                        if (!ticketPriceBox?.classList.contains('d-none')) {
+                            manualTicketPrice = ticketPrice.value;
+                        }
+                        ticketPrice.value = 0;
+                        ticketPriceBox?.classList.add('d-none');
+                    } else {
+                        ticketPriceBox?.classList.remove('d-none');
+                        if (manualTicketPrice !== '') {
+                            ticketPrice.value = manualTicketPrice;
+                        }
+                    }
+
+                    ticketPrice.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
             addBtn.addEventListener('click', function () {
                 rows.insertAdjacentHTML('beforeend', rowTemplate(rows.children.length));
                 reindexRows();
+                syncTicketFields();
             });
 
             rows.addEventListener('click', function (event) {
@@ -116,7 +168,17 @@
 
                 button.closest('tr')?.remove();
                 reindexRows();
+                syncTicketFields();
             });
+
+            rows.addEventListener('input', function (event) {
+                if (event.target.matches('input[name="age_group_price[]"], input[name="age_group_total_tickets[]"]')) {
+                    syncTicketFields();
+                }
+            });
+
+            enableAgeGroup.addEventListener('change', syncTicketFields);
+            syncTicketFields();
         });
     </script>
 @endonce
