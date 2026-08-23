@@ -4,6 +4,7 @@ $breadcrumb_image_path = $breadcrumb_image_path
 :
 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 $breadcrumb_image_alt = $breadcrumb_image_alt ?? 'Breadcrumb title';
+$breadcrumb_title_text = $breadcrumb_title_text ?? 'Make plans worth talking about';
 $breadcrumb_heading_type = $breadcrumb_heading_type ?? 'h3';
 $breadcrumb_heading_text = $breadcrumb_heading_text ?? 'Breadcrumb title';
 $breadcrumb_description =
@@ -19,7 +20,7 @@ quasi itaque voluptatum dignissimos corrupti perspiciatis, beatae dolor vel?';
     <div class="container">
         <div>
 
-            <h5 class="hd-prim"> <span class="pulse"></span> Make plans worth talking about</h5>
+            <h5 class="hd-prim"> <span class="pulse"></span> {{ $breadcrumb_title_text }}</h5>
             <{{ $breadcrumb_heading_type }} class="hd-big">{{ $breadcrumb_heading_text }}
             </{{ $breadcrumb_heading_type }}>
             <p>{{ $breadcrumb_description }}</p>

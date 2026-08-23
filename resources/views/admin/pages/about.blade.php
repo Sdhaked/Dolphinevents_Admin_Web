@@ -117,6 +117,20 @@
                         </div>
                     </div>
 
+                    <!-- Sub Heading -->
+                    <div class="d-flex">
+                        <div class="form-floating flex-shrink-0 me-2">
+                            <select class="form-select" id="aboutSubHeadingType" name="about_sub_heading_type">
+                                @include('admin._partials.options.hd-options', ['selected' => $content?->about_sub_heading_type ?? ''])
+                            </select>
+                            <label for="aboutSubHeadingType">Sub Hd type?</label>
+                        </div>
+                        <div class="form-floating flex-grow-1">
+                            <input type="text" name="about_sub_heading_text" value="{{ $content->about_sub_heading_text ?? '' }}" class="form-control" id="aboutSubHeadingText">
+                            <label for="aboutSubHeadingText">Second Heading</label>
+                        </div>
+                    </div>
+
                     <div>
                         <div style="margin: 1rem 0">
                             @include('admin._partials.mini-editor-tags')

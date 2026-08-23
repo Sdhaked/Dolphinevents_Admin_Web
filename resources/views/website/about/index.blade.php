@@ -81,13 +81,33 @@ document.addEventListener("DOMContentLoaded", function () {
 @endsection
 
 @section('body')
+    @php
+        $fallbackBreadcrumbTitle = 'Make plans worth talking about';
+        $rawMetaData = (string) ($content?->meta_data ?? '');
+        $decodedMetaData = json_decode($rawMetaData, true);
+        $aboutMetaData = is_string($decodedMetaData) ? $decodedMetaData : $rawMetaData;
+        $aboutBreadcrumbTitle = $fallbackBreadcrumbTitle;
+        $validHeadingTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+        $aboutHeadingType = in_array($content?->about_heading_type, $validHeadingTags, true)
+            ? $content->about_heading_type
+            : 'h3';
+        $aboutSubHeadingType = in_array($content?->about_sub_heading_type, $validHeadingTags, true)
+            ? $content->about_sub_heading_type
+            : 'h4';
+
+        if (preg_match('/<title\b[^>]*>(.*?)<\/title>/is', $aboutMetaData, $matches)) {
+            $parsedTitle = trim(html_entity_decode(strip_tags($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $aboutBreadcrumbTitle = $parsedTitle !== '' ? $parsedTitle : $fallbackBreadcrumbTitle;
+        }
+    @endphp
+
     <!-- Preloader -->
     @include('website._partials.preloader')
 
     <!--########## 🥗 HEADER 🥗 ##########-->
     @include('website._partials.nav')
 
-   
+
 
     <!-- MAIN BODY -->
     <main>
@@ -98,6 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 'breadcrumb_heading_type' => $content?->breadcrumb_heading_type,
                 'breadcrumb_heading_text' => $content?->breadcrumb_heading_text,
                 'breadcrumb_description' => $content?->breadcrumb_description,
+                'breadcrumb_title_text' => $aboutBreadcrumbTitle,
             ])
         @endif
 
@@ -111,10 +132,15 @@ document.addEventListener("DOMContentLoaded", function () {
                                 alt="{{ $content->about_featured_image_alt }}" loading="lazy" decoding="async" />
                         </div>
                         <div>
-                            <h2 class="hd-prim">About us</h2>
-                            <{{ $content->about_heading_type ?? 'h3' }} class="hd-big m-0">
+                            @if ($content?->about_sub_heading_text)
+                                <{{ $aboutSubHeadingType }} class="hd-prim">
+                                    {{ $content->about_sub_heading_text }}
+                                </{{ $aboutSubHeadingType }}>
+                            @endif
+                            <{{ $aboutHeadingType ?? 'h3' }} class="hd-big m-0">
                                 {{ $content->about_heading_text }}
-                                </{{ $content->about_heading_type ?? 'h3' }}>
+                            </{{ $aboutHeadingType }}>
+
                         </div>
                     </div>
 
@@ -127,8 +153,8 @@ document.addEventListener("DOMContentLoaded", function () {
             </section>
         @endif
 
-        <!--================================================== 
-        COUNT SECTION 
+        <!--==================================================
+        COUNT SECTION
         ======================================================-->
         <section class="container-fluid spc-y-half count-sec">
             <div class="container">

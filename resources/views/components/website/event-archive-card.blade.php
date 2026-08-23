@@ -3,11 +3,19 @@
 @php
     $eventUrl = route('website.events.show', $event->slug);
     $imageAltText = $event->featured_image_alt_text ?: $event->title;
+    $eventStartDate = $event->from_date ? \Illuminate\Support\Carbon::parse($event->from_date) : null;
+    $startingTicketPrice = $event->starting_ticket_price;
+    $formattedStartingTicketPrice = $startingTicketPrice !== null
+        ? \App\Models\Currency::format($startingTicketPrice, $event)
+        : null;
 @endphp
 
 <article {{ $attributes->merge(['class' => 'event-archive-card']) }}>
     <div class="date-tag">
-       <h6>14 <br><span>sep</span></h6>    
+       <h6>
+            {{ $eventStartDate?->format('j') ?? '--' }}
+            <br><span>{{ $eventStartDate ? strtolower($eventStartDate->format('M')) : '---' }}</span>
+        </h6>
     </div>
     <a href="{{ $eventUrl }}" class="img-holder">
         <img src="{{ asset('storage/' . $event->featured_image) }}"
@@ -39,7 +47,9 @@
         </p>
 
         <div class="card-footer">
-           <div class="price">From £28.00</div>
+           <div class="price">
+                {{ $formattedStartingTicketPrice ? 'From ' . $formattedStartingTicketPrice : 'Price TBA' }}
+            </div>
            <div><a role="button" href="{{ $eventUrl }}" class="book-btn">
             <i class="fa-solid fa-arrow-up-right-from-square"></i>
            </a></div>

@@ -22,6 +22,8 @@ class AboutPageContent extends Model
         'about_featured_image_alt',
         'about_heading_type',
         'about_heading_text',
+        'about_sub_heading_type',
+        'about_sub_heading_text',
         'about_description',
         'about_processed_description',
 

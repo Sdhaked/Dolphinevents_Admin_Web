@@ -142,6 +142,45 @@ class Event extends Model
         return $this->hasMany(TicketType::class);
     }
 
+    public function scopeWithCardData($query)
+    {
+        return $query->with(['currency', 'ticketTypes.ageGroups']);
+    }
+
+    public function getStartingTicketPriceAttribute(): ?float
+    {
+        $ticketTypes = $this->relationLoaded('ticketTypes')
+            ? $this->ticketTypes
+            : $this->ticketTypes()->with('ageGroups')->get();
+
+        $prices = $ticketTypes
+            ->map(fn (TicketType $ticketType) => $this->resolveTicketTypeStartingPrice($ticketType))
+            ->filter(fn ($price) => $price !== null);
+
+        return $prices->isEmpty() ? null : (float) $prices->min();
+    }
+
+    private function resolveTicketTypeStartingPrice(TicketType $ticketType): ?float
+    {
+        $ageGroups = $ticketType->relationLoaded('ageGroups')
+            ? $ticketType->ageGroups
+            : $ticketType->ageGroups()->get();
+
+        if ($ticketType->enable_age_group && $ageGroups->isNotEmpty()) {
+            $lowestAgeGroupPrice = $ageGroups
+                ->pluck('price')
+                ->filter(fn ($price) => is_numeric($price))
+                ->map(fn ($price) => (float) $price)
+                ->min();
+
+            if ($lowestAgeGroupPrice !== null) {
+                return (float) $lowestAgeGroupPrice;
+            }
+        }
+
+        return is_numeric($ticketType->ticket_price) ? (float) $ticketType->ticket_price : null;
+    }
+
     public function services(): HasMany
     {
         return $this->hasMany(EventService::class);

@@ -55,7 +55,13 @@ class HomeController extends Controller
         HomePageContent::updateOrCreate(
             ['id' => 1],
             [
-                'show_what' => $request->input('show_what'),
+                'show_what' => $request->input('show_what', $page?->show_what ?? 'default'),
+                'default_hero_heading_type_1' => $request->input('default_hero_heading_type_1', 'h3'),
+                'default_hero_heading_1' => $request->input('default_hero_heading_1'),
+                'default_hero_heading_type_2' => $request->input('default_hero_heading_type_2', 'h1'),
+                'default_hero_heading_2' => $request->input('default_hero_heading_2'),
+                'default_hero_description' => $request->input('default_hero_description'),
+                'default_hero_processed_description' => $request->input('default_hero_processed_description'),
                 'hero_video_path' => $hero_video_path,
                 'about_image_path' => $about_image_path,
                 'about_image_alt' => $request->input('about_image_alt') ?? 'home-page-about-image',

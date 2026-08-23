@@ -13,6 +13,12 @@ class HomePageContent extends Model
 
     protected $fillable = [
         'show_what',
+        'default_hero_heading_type_1',
+        'default_hero_heading_1',
+        'default_hero_heading_type_2',
+        'default_hero_heading_2',
+        'default_hero_description',
+        'default_hero_processed_description',
         'hero_video_path',
         'hero_video_poster',
         'about_image_path',

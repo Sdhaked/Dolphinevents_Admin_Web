@@ -85,6 +85,8 @@ class AboutController extends Controller
                 'about_featured_image_alt' => $request->input('about_featured_image_alt') ?? 'about-featured-image',
                 'about_heading_type' => $request->input('about_heading_type'),
                 'about_heading_text' => $request->input('about_heading_text'),
+                'about_sub_heading_type' => $request->input('about_sub_heading_type'),
+                'about_sub_heading_text' => $request->input('about_sub_heading_text'),
                 'about_description' => $request->input('about_description') ?? $page?->about_description,
                 'about_processed_description' => $request->input('about_processed_description') ?? $page?->about_processed_description,
 

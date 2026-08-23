@@ -32,21 +32,27 @@
 
             <h5 class="hd-lg">Home Page Content</h5>
 
-            <form action="{{ route('admin.pages.home.store') }}" method="POST" class="needs-validation" novalidate
+            <form action="{{ route('admin.pages.home.store') }}" method="POST" class="needs-validation" id="homePageContentForm" novalidate
                 enctype="multipart/form-data">
                 @csrf
                 <div class="style-box">
-                    <h3 class="hd-sm">Show Image Slider / Video on Main page Hero Section?</h3>
+                    <h3 class="hd-sm">Show Image Slider / Video / Default Hero Section on Main page Hero Section?</h3>
                     <div>
                         <div class="form-check">
+                            <input class="form-check-input" type="radio" name="show_what" id="defaultHero" value="default"
+                                {{ ($content?->show_what ?? 'default') == 'default' ? 'checked' : '' }}>
+                            <label for="defaultHero">Default Hero Section</label>
+                        </div>
+
+                        <div class="form-check">
                             <input class="form-check-input" type="radio" name="show_what" id="slider" value="slider"
-                                {{ ($content?->show_what ?? 'slider') == 'slider' ? 'checked' : '' }}>
+                                {{ ($content?->show_what ?? 'default') == 'slider' ? 'checked' : '' }}>
                             <label for="slider">Image Slider</label>
                         </div>
 
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="show_what" id="radio2" value="video"
-                                {{ ($content?->show_what ?? 'slider') == 'video' ? 'checked' : '' }}>
+                                {{ ($content?->show_what ?? 'default') == 'video' ? 'checked' : '' }}>
                             <label for="radio2">Video</label>
                         </div>
                     </div>
@@ -69,6 +75,56 @@
                                 class="form-control mt-1" id="ds5v8d" accept="video/*">
                         </div>
                     </div>
+                </div>
+
+                <div class="style-box grid-1 gap-card">
+                    <div>
+                        <h4 class="hd-sm">Default Hero Section</h4>
+                    </div>
+
+                    <div class="d-flex">
+                        <div class="form-floating flex-shrink-0 me-2">
+                            <select class="form-select" name="default_hero_heading_type_1" id="defaultHeroHeadingType1">
+                                @include('admin._partials.options.hd-options', [
+                                    'selected' => $content->default_hero_heading_type_1 ?? 'h3',
+                                ])
+                            </select>
+                            <label for="defaultHeroHeadingType1">Hd type?</label>
+                        </div>
+                        <div class="form-floating flex-grow-1">
+                            <input type="text" name="default_hero_heading_1" class="form-control" id="defaultHeroHeading1"
+                                value="{{ $content->default_hero_heading_1 ?? '' }}">
+                            <label for="defaultHeroHeading1">First Heading *</label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex">
+                        <div class="form-floating flex-shrink-0 me-2">
+                            <select class="form-select" name="default_hero_heading_type_2" id="defaultHeroHeadingType2">
+                                @include('admin._partials.options.hd-options', [
+                                    'selected' => $content->default_hero_heading_type_2 ?? 'h1',
+                                ])
+                            </select>
+                            <label for="defaultHeroHeadingType2">Sub Hd type?</label>
+                        </div>
+                        <div class="form-floating flex-grow-1">
+                            <input type="text" name="default_hero_heading_2" class="form-control" id="defaultHeroHeading2"
+                                value="{{ $content->default_hero_heading_2 ?? '' }}">
+                            <label for="defaultHeroHeading2">Second Heading *</label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style="margin: 1rem 0">
+                            @include('admin._partials.mini-editor-tags')
+                        </div>
+                        <div class="form-floating">
+                            <textarea class="form-control" name="default_hero_description" id="default_hero_description" style="height: 15rem"
+                                onblur="processDefaultHeroDescription(event)">{{ $content->default_hero_description ?? '' }}</textarea>
+                            <label>Description</label>
+                        </div>
+                    </div>
+                    <input type="hidden" name="default_hero_processed_description" id="default_hero_processed_description">
                 </div>
 
                 <div class="style-box grid-1 gap-card">
@@ -167,10 +223,27 @@
     </section>
 
     <script>
+        function processDefaultHeroDescription(e) {
+            if (e) {
+                e.preventDefault();
+            }
+
+            const description = document.getElementById('default_hero_description').value;
+            document.getElementById('default_hero_processed_description').value = HTMLProcesser(description);
+        }
+
         function processDescription(e) {
-            e.preventDefault();
+            if (e) {
+                e.preventDefault();
+            }
+
             const description = document.getElementById('about_description').value;
             document.getElementById('about_processed_description').value = HTMLProcesser(description);
         }
+
+        document.getElementById('homePageContentForm')?.addEventListener('submit', function() {
+            processDefaultHeroDescription();
+            processDescription();
+        });
     </script>
 @endsection

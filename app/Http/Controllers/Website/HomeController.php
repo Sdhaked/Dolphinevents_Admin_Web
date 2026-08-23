@@ -27,14 +27,14 @@ class HomeController extends Controller
         $content->gallery_total = Gallery::count();
 
         // Featured events: show upcoming/active first, then recently expired ones.
-        $featuredActiveOrUpcomingEvents = Event::query()
+        $featuredActiveOrUpcomingEvents = Event::withCardData()
             ->featured()
             ->activeOrUpcoming()
             ->orderBy('from_date')
             ->orderBy('from_time')
             ->get();
 
-        $featuredExpiredEvents = Event::query()
+        $featuredExpiredEvents = Event::withCardData()
             ->featured()
             ->expired()
             ->orderByRaw('COALESCE(to_date, from_date) DESC')
@@ -46,13 +46,15 @@ class HomeController extends Controller
             ->values();
 
         // Active today
-        $content->active_today_events = Event::activeToday()
+        $content->active_today_events = Event::withCardData()
+            ->activeToday()
             ->orderBy('from_date')
             ->orderBy('from_time')
             ->get();
 
         // Upcoming events
-        $content->upcoming_events = Event::activeOrUpcoming()
+        $content->upcoming_events = Event::withCardData()
+            ->activeOrUpcoming()
             ->where('status', Event::STATUS_PUBLISHED)
             ->orderBy('from_date')
             ->orderBy('from_time')
@@ -103,7 +105,8 @@ class HomeController extends Controller
 
     private function pastEventsQuery()
     {
-        return Event::expired()
+        return Event::withCardData()
+            ->expired()
             ->orderByRaw('COALESCE(to_date, from_date) DESC')
             ->orderByDesc('to_time');
     }

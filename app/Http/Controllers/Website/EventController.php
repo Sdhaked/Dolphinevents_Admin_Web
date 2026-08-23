@@ -50,7 +50,7 @@ class EventController extends Controller
 
         $content = EventArchivePageContent::find(1);
 
-        $eventsQuery = Event::query()
+        $eventsQuery = Event::withCardData()
             ->where('status', Event::STATUS_PUBLISHED);
 
         // Default: current date and future events

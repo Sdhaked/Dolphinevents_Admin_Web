@@ -65,8 +65,16 @@
 
 @section('body')
     @php
-        $hasHeroSlider = $content?->show_what === 'slider' && ($content?->hero_slider?->isNotEmpty() ?? false);
-        $hasHeroVideo = $content?->show_what === 'video' && filled($content?->hero_video_path);
+        $selectedHero = $content?->show_what ?: 'default';
+        $hasDefaultHero = $selectedHero === 'default';
+        $hasHeroSlider = $selectedHero === 'slider' && ($content?->hero_slider?->isNotEmpty() ?? false);
+        $hasHeroVideo = $selectedHero === 'video' && filled($content?->hero_video_path);
+        $validHeadingTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+        $defaultHeroHeadingType1 = in_array($content?->default_hero_heading_type_1, $validHeadingTags, true) ? $content->default_hero_heading_type_1 : 'h3';
+        $defaultHeroHeadingType2 = in_array($content?->default_hero_heading_type_2, $validHeadingTags, true) ? $content->default_hero_heading_type_2 : 'h1';
+        $defaultHeroHeading1 = $content?->default_hero_heading_1 ?: 'About Dolphin Tickets';
+        $defaultHeroHeading2 = $content?->default_hero_heading_2 ?: 'Your next memory starts right here.';
+        $defaultHeroDescription = $content?->default_hero_description ?: 'Dolphin Tickets brings people closer to the events they love. From high-energy concerts and community celebrations to comedy, culture and family experiences, we make discovering and booking UK events effortless.';
         $hasActiveTodayEvents = $content?->active_today_events?->isNotEmpty() ?? false;
         $hasUpcomingEvents = $content?->upcoming_events?->isNotEmpty() ?? false;
         $hasPastEvents = $content?->past_events?->isNotEmpty() ?? false;
@@ -80,53 +88,54 @@
     <!-- MAIN BODY -->
     <main>
 
-     <!--==================================================
-                      HERO DEFAULT SECTION
-    ======================================================-->
-    <section class="container-fluid spc-y default-hero-sec dark-bg">
-        <div class="container grid-sec-2 gap-col">
-            <div>          
-              <h3 class="hd-prim"><span class="pulse"></span> About Dolphin Tickets</h3>
-              <h1 class="hd-big">Your next memory starts right here.</h1>
-                              
-              <!-- Description -->
-              <p>Dolphin Tickets brings people closer to the events they love. From high-energy concertsand   community celebrations to comedy, culture and family experiences, we make discoveringand   booking UK events effortless.</p>
-              <!-- Button -->
-              <a href="http://127.0.0.1:8000/events" role="button" class="btn-sm btn-lite hover-sec mt-spc">
-                Book Tickets
-                <i class="fa-solid fa-arrow-right-long i-ml"></i>
-              </a>       
-            </div>
-
-            <!-- EVENT Slider col -->
-            <div class="swiper heroSwiperDef">
-                <div class="swiper-wrapper">
-                    <div class="swiper-slide swap-event-card">
-                        <img src="https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1000&q=88" alt="event title" loading="lazy" decoding="async" />
-                        <a href="#" class="content">
-                            <h3 class="hd-prim">17 SEP 2023</h3>
-                            <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
-                        </a>
-                    </div>
-                    <div class="swiper-slide swap-event-card">
-                        <img src="https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=85" alt="event title" loading="lazy" decoding="async" />
-                        <a href="#" class="content">
-                            <h3 class="hd-prim">17 SEP 2023</h3>
-                            <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        </div>
-    </section>
-
         <!--==================================================
               HERO SECTION
         ======================================================-->
-        @if ($hasHeroSlider || $hasHeroVideo)
-            <section style="width:100%">
-            @if ($hasHeroSlider)
+        @if ($hasHeroSlider || $hasHeroVideo || $hasDefaultHero)
+            @if ($hasDefaultHero)
+                <section class="container-fluid spc-y default-hero-sec dark-bg">
+                    <div class="container grid-sec-2 gap-col">
+                        <div>
+                            <{{ $defaultHeroHeadingType1 }} class="hd-prim"><span class="pulse"></span> {{ $defaultHeroHeading1 }}</{{ $defaultHeroHeadingType1 }}>
+                            <{{ $defaultHeroHeadingType2 }} class="hd-big">{{ $defaultHeroHeading2 }}</{{ $defaultHeroHeadingType2 }}>
+
+                            <!-- Description -->
+                            @if (filled($content?->default_hero_processed_description))
+                                {!! $content->default_hero_processed_description !!}
+                            @else
+                                <p>{{ $defaultHeroDescription }}</p>
+                            @endif
+                            <!-- Button -->
+                            <a href="{{ route('website.events.index') }}" role="button" class="btn-sm btn-lite hover-sec mt-spc">
+                                Book Tickets
+                                <i class="fa-solid fa-arrow-right-long i-ml"></i>
+                            </a>
+                        </div>
+
+                        <!-- EVENT Slider col -->
+                        <div class="swiper heroSwiperDef">
+                            <div class="swiper-wrapper">
+                                <div class="swiper-slide swap-event-card">
+                                    <img src="https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1000&q=88" alt="event title" loading="lazy" decoding="async" />
+                                    <a href="#" class="content">
+                                        <h3 class="hd-prim">17 SEP 2023</h3>
+                                        <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
+                                    </a>
+                                </div>
+                                <div class="swiper-slide swap-event-card">
+                                    <img src="https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=85" alt="event title" loading="lazy" decoding="async" />
+                                    <a href="#" class="content">
+                                        <h3 class="hd-prim">17 SEP 2023</h3>
+                                        <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            @else
+                <section style="width:100%">
+                @if ($hasHeroSlider)
                 <!-- Slider container -->
                 <div class="swiper heroSwiper">
                     <div class="swiper-wrapper">
@@ -149,7 +158,8 @@
                         title="Welcome to Dolphinevent">
                 </video>
             @endif
-            </section>
+                </section>
+            @endif
         @endif
 
     <div class="ticker">
