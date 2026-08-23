@@ -79,6 +79,48 @@
 
     <!-- MAIN BODY -->
     <main>
+
+     <!--==================================================
+                      HERO DEFAULT SECTION
+    ======================================================-->
+    <section class="container-fluid spc-y default-hero-sec dark-bg">
+        <div class="container grid-sec-2 gap-col">
+            <div>          
+              <h3 class="hd-prim"><span class="pulse"></span> About Dolphin Tickets</h3>
+              <h1 class="hd-big">Your next memory starts right here.</h1>
+                              
+              <!-- Description -->
+              <p>Dolphin Tickets brings people closer to the events they love. From high-energy concertsand   community celebrations to comedy, culture and family experiences, we make discoveringand   booking UK events effortless.</p>
+              <!-- Button -->
+              <a href="http://127.0.0.1:8000/events" role="button" class="btn-sm btn-lite hover-sec mt-spc">
+                Book Tickets
+                <i class="fa-solid fa-arrow-right-long i-ml"></i>
+              </a>       
+            </div>
+
+            <!-- EVENT Slider col -->
+            <div class="swiper heroSwiperDef">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide swap-event-card">
+                        <img src="https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1000&q=88" alt="event title" loading="lazy" decoding="async" />
+                        <a href="#" class="content">
+                            <h3 class="hd-prim">17 SEP 2023</h3>
+                            <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
+                        </a>
+                    </div>
+                    <div class="swiper-slide swap-event-card">
+                        <img src="https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=85" alt="event title" loading="lazy" decoding="async" />
+                        <a href="#" class="content">
+                            <h3 class="hd-prim">17 SEP 2023</h3>
+                            <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </section>
+
         <!--==================================================
               HERO SECTION
         ======================================================-->
@@ -142,6 +184,12 @@
                             <x-website.event-archive-card :event="$event" />
                         @endforeach
                     </div>
+
+                    <div class="center-btn-box only-mb">
+                    <a href="{{ route('website.events.index') }}" class="btn-md btn-prim-outline hover-prim">
+                        Explore All
+                    </a>
+                </div>
                 </div>
             </section>
         @endif
@@ -187,7 +235,7 @@
                                   </div>
                                 </div>
 
-                                <a href="{{ route('website.about.index') }}" role="button" class="btn-sm btn-lite-outline hover-prim mt-spc">
+                                <a href="{{ route('website.about.index') }}" role="button" class="btn-sm btn-lite hover-sec mt-spc">
                                     Know more
                                     <i class="fa-solid fa-arrow-right-long i-ml"></i>
                                 </a>
@@ -202,7 +250,7 @@
         <!--==================================================
                             INFO SLIDER SECTION
         ======================================================-->
-            <section class="container-fluid spc-y">
+            <section class="container-fluid spc-y-half">
                 <div class="container">
                     <!-- Slider container -->
                     <div class="swiper infoSlider">
@@ -280,7 +328,7 @@
                         <x-website.event-archive-card :event="$event" />
                     @endforeach
                 </div>
-                <div class="center-btn-box">
+                <div class="center-btn-box only-mb">
                     <a href="{{ route('website.events.index') }}" class="btn-md btn-prim-outline hover-prim">
                         Explore All
                     </a>
@@ -323,7 +371,7 @@
                         <h3 class="hd-big">Invented {{ $content?->event_count-1 }}+ events</h3>
                         <p>Immerse yourself in an evening of music, movement and culture with award-winning artists and remarkable experiences arriving across the UK.</p>
                         <div>
-                            <a href="{{ route('website.contact.index') }}"class="btn-md btn-prim-outline hover-prim-primmt-prim">CONTACT US
+                            <a href="{{ route('website.contact.index') }}"class="btn-sm btn-lite hover-sec">CONTACT US
                                 <i class="fa-solid fa-arrow-right-long i-ml"></i></a>
                         </div>
                     </div>

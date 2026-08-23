@@ -1,4 +1,68 @@
 /*++++++++++++++++++++++++++++++
+        HERO SECTION  
+++++++++++++++++++++++++++++++++*/
+.default-hero-sec{
+    min-height: 89dvh;
+      background: linear-gradient(90deg, rgba(4, 21, 65, .98) 0%, rgba(4, 33, 86, .88) 48%, rgba(2, 33, 84, .30) 100%), url(https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1800&q=90) center / cover;
+      position: relative;
+      overflow: hidden;
+}
+.default-hero-sec::before {
+    content: "";
+    position: absolute;
+    width: 580px;
+    height: 580px;
+    top: -280px;
+    right: -130px;
+    border: 85px solid rgba(157, 221, 248, .16);
+    border-radius: 50%;
+}
+
+
+.default-hero-sec .container > div:first-child .hd-big {
+    --f-size: 4.5rem;
+  font-size: var(--f-size);
+  line-height: calc(var(--f-size) + 0.5rem);
+}
+
+.default-hero-sec .swap-event-card {
+  border-radius: var(--radius-prim);
+overflow: hidden;
+position: relative;
+transition: var(--transition-ease);
+}
+
+
+.default-hero-sec .swap-event-card .content {
+ background: rgb(143 141 141 / 8%);
+ padding:1rem 1.2rem;
+ color:var(--color-text-toggle);
+ position:absolute;
+ bottom:0;
+ left:0;
+ width:100%;
+ text-align: end;
+ backdrop-filter: blur(5px);
+}
+.default-hero-sec .swap-event-card .content .event-name {
+  font-size: 1rem;
+  font-family: var(--font-primary);
+  font-weight: 500;
+  color: var(--color-text-toggle);
+  margin-bottom: 0.3rem;
+}
+
+@media (max-width:1200px) {
+    .default-hero-sec .container > div:first-child .hd-big {
+    --f-size: 3.2rem;
+}
+}
+@media (max-width:800px) {
+    .default-hero-sec .container > div:first-child .hd-big {
+    --f-size: 2rem;
+}
+}
+/*++++++++++++++++++++++++++++++
         MINI ABOUT SECTION  
 ++++++++++++++++++++++++++++++++*/
 .mini-about-sec {

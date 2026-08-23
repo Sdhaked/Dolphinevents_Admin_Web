@@ -644,15 +644,7 @@
     color: var(--my-secoundry);
 } */
 
-.Breadcrumb .pulse {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #a9ddf7;
-    box-shadow: 0 0 0 6px rgba(169, 221, 247, 0.15);
-    margin-right: 0.2rem;
-}
+
 
 @media (max-width: 800px) {
     .Breadcrumb .container {
@@ -763,7 +755,15 @@
 .center-btn-box {
     display: flex;
     justify-content: center;
-    margin-top: 3rem;
+    margin-top: 1rem;
+}
+.center-btn-box.only-mb{
+  display: none !important;
+}
+@media (max-width: 800px) {
+    .center-btn-box.only-mb{
+  display: flex !important;
+}
 }
 
 .btn-w-full {
