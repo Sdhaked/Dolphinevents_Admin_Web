@@ -626,26 +626,32 @@
 }
 .Breadcrumb .container > div {
     width: 100%;
-    max-width: 750px;
     margin: auto;
 }
 .Breadcrumb .hd-prim {
+    color: var(--color-text-toggle-300);
+}
+.Breadcrumb .hd-big {
     color: var(--color-text-toggle);
-    text-align: center;
     margin: 0;
-    font-weight: 400;
 }
 .Breadcrumb p {
-    font-weight: 200;
-    color: var(--color-text-toggle);
-    text-align: center;
+    color: var(--color-text-toggle-200);
     margin: 1rem 0 0 0;
-    font-size: 0.8rem;
 }
-.Breadcrumb i {
-    position: relative;
-    font-size: 1.3rem;
-    bottom: -3rem;
+/* .Breadcrumb i {
+    font-size: 1.5rem;
+    color: var(--my-secoundry);
+} */
+
+.Breadcrumb .pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a9ddf7;
+    box-shadow: 0 0 0 6px rgba(169, 221, 247, 0.15);
+    margin-right: 0.2rem;
 }
 
 @media (max-width: 800px) {
@@ -716,7 +722,7 @@
     flex-grow: 1;
 }
 .side-hd-holder .hd-big {
-   margin: 0;
+    margin: 0;
 }
 .side-hd-holder > div:last-child {
     flex-shrink: 0;
@@ -735,7 +741,6 @@
     .hd-big {
         --hd-f-size: 1.7rem;
     }
-
 }
 
 /*******************************
@@ -775,7 +780,7 @@
     font-weight: 500;
     padding: 0.94rem 1.44rem;
     font-size: 0.88rem;
-    border-radius: 0;
+    border-radius: 50px;
     text-align: center;
     color: var(--color-text-100);
     display: inline-block;
@@ -787,7 +792,7 @@
     font-weight: 500;
     padding: 0.6rem 1.2rem;
     font-size: 0.81rem;
-    border-radius: 0;
+    border-radius: 50px;
     text-align: center;
     color: var(--color-text-100);
     display: inline-block;
@@ -800,7 +805,7 @@
     letter-spacing: 1px;
     padding: 0.4rem 0.85rem;
     font-size: 0.75rem;
-    border-radius: 0;
+    border-radius: 50px;
     color: var(--color-text-100);
     text-align: center;
     text-transform: capitalize;
@@ -1207,7 +1212,7 @@
 }
 
 .event-archive-card .text-holder .date-time {
-     font-style: normal;
+    font-style: normal;
     font-weight: 400;
     margin-bottom: 0;
     color: var(--color-text-100);
@@ -1217,7 +1222,7 @@
     margin-bottom: 0;
 }
 
-.card-footer{
+.card-footer {
     padding: 0.7rem 0 0.3rem 0;
     margin-top: 0.7rem;
     display: flex;
@@ -1225,12 +1230,12 @@
     align-items: center;
     border-top: 1px solid var(--color-border-100);
 }
-.card-footer .price{
+.card-footer .price {
     font-size: 0.75rem;
     font-weight: 800;
     color: var(--color-text-500);
 }
-.card-footer .book-btn{
+.card-footer .book-btn {
     padding: 0.4rem 0.6rem;
     border-radius: var(--radius-sec);
     font-size: 0.85rem;
@@ -1239,7 +1244,7 @@
     background-color: var(--my-primary);
     transition: var(--transition-ease);
 }
-.card-footer .book-btn:hover{
-     color: var(--my-primary);
+.card-footer .book-btn:hover {
+    color: var(--my-primary);
     background-color: var(--color-bg-300);
 }

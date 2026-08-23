@@ -1,39 +1,39 @@
 .my-map {
-  width: 100%;
-  height: 70dvh;
-  border: none;
+    width: 100%;
+    height: 70dvh;
+    border: none;
 }
 
 .contact-card {
-  border-radius: var(--radius-prim);
-  background: var(--color-bg-400);
-  border: 1px solid transparent;
-  padding: 2.2rem;
-  display: flex;
-  flex-direction: column;
-  min-height: 25dvh;
-  transition: var(--transition-ease);
+    border-radius: var(--radius-prim);
+    background: var(--color-bg-100);
+    border: 1px solid var(--color-border-200);
+    padding: 2.2rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 25dvh;
+    transition: var(--transition-ease);
 }
 .contact-card:hover {
-  border: 1px solid var(--my-primary);
-  transform: translateY(-5px);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--my-primary);
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
 }
 .contact-card .hd-title {
-  margin-bottom: 1rem;
-  color: var(--color-text-300);
-  text-transform: uppercase;
+    margin-bottom: 1rem;
+    color: var(--color-text-300);
+    text-transform: uppercase;
 }
 .contact-card .content {
-  color: var(--color-text-200) !important;
-  font-weight: 500;
-  transition: var(--transition-ease);
+    color: var(--color-text-200) !important;
+    font-weight: 500;
+    transition: var(--transition-ease);
 }
 .contact-card .content:hover {
-  color: var(--my-primary) !important;
-  cursor: pointer;
+    color: var(--my-primary) !important;
+    cursor: pointer;
 }
 .contact-card .content:last-child {
-  margin-bottom: 0;
-  color: var(--color-text-200);
+    margin-bottom: 0;
+    color: var(--color-text-200);
 }
