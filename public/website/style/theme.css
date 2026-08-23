@@ -53,7 +53,7 @@
   --nav-link-hover-color: var(--my-secoundry);
   --nav-link-active-color: var(--my-primary);
   --nav-link-f-size: 0.9rem;
-  --nav-logo-width: 2.8rem;
+  --nav-logo-width: 4rem;
 
   /* Button Transission effect */
   --btn-transform: translateY(-2px);
