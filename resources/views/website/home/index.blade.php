@@ -115,20 +115,23 @@
                         <!-- EVENT Slider col -->
                         <div class="swiper heroSwiperDef">
                             <div class="swiper-wrapper">
-                                <div class="swiper-slide swap-event-card">
-                                    <img src="https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1000&q=88" alt="event title" loading="lazy" decoding="async" />
-                                    <a href="#" class="content">
-                                        <h3 class="hd-prim">17 SEP 2023</h3>
-                                        <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
-                                    </a>
-                                </div>
-                                <div class="swiper-slide swap-event-card">
-                                    <img src="https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=85" alt="event title" loading="lazy" decoding="async" />
-                                    <a href="#" class="content">
-                                        <h3 class="hd-prim">17 SEP 2023</h3>
-                                        <h3 class="event-name">Lorem ipsum dolor sit amet</h3>
-                                    </a>
-                                </div>
+                                @foreach ($content->upcoming_events as $event)
+                                    @php
+                                        $eventUrl = route('website.events.show', $event->slug);
+                                        $eventImage = $event->featured_image
+                                            ? asset('storage/' . $event->featured_image)
+                                            : 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=85';
+                                        $eventImageAlt = $event->featured_image_alt_text ?: $event->title;
+                                        $eventDate = $event->from_date ? strtoupper($event->from_date->format('j M Y')) : '';
+                                    @endphp
+                                    <div class="swiper-slide swap-event-card">
+                                        <img src="{{ $eventImage }}" alt="{{ $eventImageAlt }}" loading="lazy" decoding="async" />
+                                        <a href="{{ $eventUrl }}" class="content">
+                                            <h3 class="hd-prim">{{ $eventDate }}</h3>
+                                            <h3 class="event-name">{{ $event->title }}</h3>
+                                        </a>
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
                     </div>
