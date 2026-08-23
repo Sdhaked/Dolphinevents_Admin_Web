@@ -36,7 +36,11 @@ return [
     ],
     'stripe' => [
         'key' => env('STRIPE_KEY'),
-        'secret' => env('STRIPE_SECRET', env('STRIPE_SECRET_KEY')),
+        'secret' => env('STRIPE_SECRET') ?: (
+            strtolower((string) env('PAYMENT_MODE', 'test')) === 'live'
+                ? env('STRIPE_LIVE_SECRET_KEY')
+                : env('STRIPE_TEST_SECRET_KEY')
+        ),
     ],
 
 ];

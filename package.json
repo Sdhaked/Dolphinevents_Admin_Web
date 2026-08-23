@@ -3,6 +3,9 @@
     "name": "dolphinevents-admin-web",
     "private": true,
     "type": "module",
+    "engines": {
+        "node": ">=22 <23"
+    },
     "scripts": {
         "build": "vite build",
         "dev": "php artisan serve",
