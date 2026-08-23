@@ -1,0 +1,249 @@
+name: CI and Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Test and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      APP_DEBUG: 'true'
+      CACHE_STORE: array
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo, pdo_sqlite, sqlite3, intl, gd
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate Composer files
+        run: composer validate --no-check-publish
+
+      - name: Report production PHP dependency advisories
+        continue-on-error: true
+        run: composer audit --locked --no-dev
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Audit production frontend dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Run automated tests
+        run: php artisan test
+
+      - name: Compile Blade views
+        run: php artisan view:cache
+
+  deploy:
+    name: Deploy production
+    needs: quality
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      DEPLOY_PHP_BINARY: ${{ vars.DEPLOY_PHP_BINARY || 'php' }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+      KEEP_RELEASES: ${{ vars.KEEP_RELEASES || '5' }}
+      RELEASE_ID: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo, intl, gd
+          coverage: none
+          tools: composer:v2
+
+      - name: Install production PHP dependencies
+        run: composer install --prefer-dist --no-dev --no-interaction --no-progress --optimize-autoloader
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Build production frontend assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Validate deployment settings
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          required=(
+            DEPLOY_HOST
+            DEPLOY_USER
+            DEPLOY_PORT
+            DEPLOY_PATH
+            DEPLOY_SSH_KEY
+            DEPLOY_KNOWN_HOSTS
+            PRODUCTION_URL
+          )
+
+          for setting in "${required[@]}"; do
+            if [[ -z "${!setting:-}" ]]; then
+              echo "::error::Missing production environment secret or variable: ${setting}"
+              exit 1
+            fi
+          done
+
+          [[ "$DEPLOY_PORT" =~ ^[0-9]+$ ]] || { echo "::error::DEPLOY_PORT must be numeric"; exit 1; }
+          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "::error::Invalid DEPLOY_HOST"; exit 1; }
+          [[ "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ && "$DEPLOY_PATH" != "/" ]] || {
+            echo "::error::DEPLOY_PATH must be a safe absolute server path"
+            exit 1
+          }
+          [[ "$DEPLOY_PATH" != *"/../"* && "$DEPLOY_PATH" != *"/./"* && "$DEPLOY_PATH" != *"//"* ]] || {
+            echo "::error::DEPLOY_PATH cannot contain relative or duplicate path segments"
+            exit 1
+          }
+          [[ "$DEPLOY_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::error::Invalid DEPLOY_USER"; exit 1; }
+          [[ "$KEEP_RELEASES" =~ ^[1-9][0-9]*$ ]] || { echo "::error::KEEP_RELEASES must be positive"; exit 1; }
+          [[ "$DEPLOY_PHP_BINARY" == "php" || "$DEPLOY_PHP_BINARY" =~ ^/[A-Za-z0-9._/-]+$ ]] || {
+            echo "::error::DEPLOY_PHP_BINARY must be php or an absolute path"
+            exit 1
+          }
+          [[ "$DEPLOY_SSH_KEY" == *"BEGIN OPENSSH PRIVATE KEY"* ]] || {
+            echo "::error::DEPLOY_SSH_KEY is not an OpenSSH private key"
+            exit 1
+          }
+
+      - name: Package application
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          tar \
+            --exclude='./.git' \
+            --exclude='./.github' \
+            --exclude='./.env' \
+            --exclude='./node_modules' \
+            --exclude='./tests' \
+            --exclude='./storage/app/*' \
+            --exclude='./storage/framework/*' \
+            --exclude='./storage/logs/*' \
+            -czf "$RUNNER_TEMP/release.tar.gz" .
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
+
+      - name: Upload release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          ssh_options=(
+            -i "$HOME/.ssh/deploy_key"
+            -p "$DEPLOY_PORT"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+          )
+          scp_options=(
+            -i "$HOME/.ssh/deploy_key"
+            -P "$DEPLOY_PORT"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+          )
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          release_path="$DEPLOY_PATH/releases/$RELEASE_ID"
+
+          ssh "${ssh_options[@]}" "$remote" "mkdir -p '$release_path'"
+          scp "${scp_options[@]}" "$RUNNER_TEMP/release.tar.gz" "$remote:$release_path/release.tar.gz"
+          ssh "${ssh_options[@]}" "$remote" \
+            "cd '$release_path' && tar -xzf release.tar.gz && rm -f release.tar.gz"
+
+      - name: Activate release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          ssh_options=(
+            -i "$HOME/.ssh/deploy_key"
+            -p "$DEPLOY_PORT"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+          )
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+
+          ssh "${ssh_options[@]}" "$remote" \
+            "bash -s -- '$DEPLOY_PATH' '$RELEASE_ID' '$KEEP_RELEASES' '$DEPLOY_PHP_BINARY'" \
+            < scripts/deploy-production.sh
+
+      - name: Verify production health
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          curl --fail --show-error --silent --location \
+            --retry 5 --retry-delay 5 --retry-all-errors \
+            "${PRODUCTION_URL%/}/up"
