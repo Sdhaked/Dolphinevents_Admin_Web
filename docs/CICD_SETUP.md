@@ -1,6 +1,6 @@
 # Dolphin Events CI/CD Setup
 
-This project uses GitHub Actions for Laravel tests, Vite builds, and atomic production deployment over SSH. Complete these steps once before the first deployment.
+This project uses GitHub Actions for Laravel tests, Vite builds, and direct production deployment over SSH. Complete these steps once before the first deployment.
 
 ## 1. Information required from the hosting account
 
@@ -9,10 +9,24 @@ Collect these values from cPanel or MilesWeb support:
 - SSH hostname or IP address.
 - SSH port, normally `22`, but hosting providers sometimes use a custom port.
 - cPanel SSH username.
-- Full cPanel home path, normally `/home/CPANEL_USER`.
+- Full deploy path.
 - Production domain URL.
-- Confirmation that SSH access and symbolic links are enabled.
+- Confirmation that SSH access is enabled.
 - PHP 8.2 or newer CLI binary path.
+- `rsync` availability on the server.
+
+Confirmed values for this server:
+
+- `DEPLOY_USER`: `dgwowuwr`
+- `DEPLOY_PATH`: `/home/dgwowuwr/dolphinevents.co.uk`
+- `DEPLOY_PHP_BINARY`: `/usr/local/bin/php`
+- `PRODUCTION_URL`: `https://dolphinevents.co.uk`
+- Local deployment key fingerprint: `SHA256:JFCp/UmGBjq9dewzaDfqKprfYZO6OsmKPvGgCqLLGZo`
+
+Still confirm before deployment:
+
+- `DEPLOY_HOST`: use the same hostname/IP that accepts SSH for this cPanel account.
+- `DEPLOY_PORT`: use the SSH port that works from PowerShell, normally `22`.
 
 Open cPanel `Terminal` and run:
 
@@ -60,40 +74,46 @@ Get-Content "$env:USERPROFILE\.ssh\dolphinevents_cicd.pub"
 7. Test the key from PowerShell:
 
 ```powershell
-ssh -i "$env:USERPROFILE\.ssh\dolphinevents_cicd" -p SSH_PORT CPANEL_USER@SSH_HOST
+ssh -i "$env:USERPROFILE\.ssh\dolphinevents_cicd" -p SSH_PORT dgwowuwr@SSH_HOST
 ```
 
 The command must log in without asking for the cPanel password.
 
-## 4. Prepare the Laravel folders on the server
+## 4. Prepare the Laravel folder on the server
 
-After connecting through SSH, replace the example username and run:
+After connecting through SSH, run:
 
 ```bash
-mkdir -p /home/CPANEL_USER/apps/dolphinevents/releases
-mkdir -p /home/CPANEL_USER/apps/dolphinevents/shared/storage
-chmod 700 /home/CPANEL_USER/apps/dolphinevents/shared
+cd /home/dgwowuwr/dolphinevents.co.uk
+mkdir -p .deploy/releases .deploy/backups
+mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs
+chmod 700 .deploy
+which rsync
 ```
 
 The final layout will be:
 
 ```text
-/home/CPANEL_USER/apps/dolphinevents/
-|-- current -> releases/RELEASE_ID
-|-- releases/
-`-- shared/
-    |-- .env
-    `-- storage/
+/home/dgwowuwr/dolphinevents.co.uk/
+|-- .deploy/
+|   |-- backups/
+|   `-- releases/
+|-- .env
+|-- app/
+|-- bootstrap/
+|-- public/
+|-- storage/
+`-- vendor/
 ```
 
-Do not create `current` manually. The first successful deployment creates it.
+GitHub uploads each build to `.deploy/releases/RELEASE_ID`, backs up the current files into `.deploy/backups/RELEASE_ID`, then syncs the new code directly into `/home/dgwowuwr/dolphinevents.co.uk`.
 
 ## 5. Create the production environment file
 
 Copy the project's `.env.example` content to this server file using cPanel File Manager or Terminal:
 
 ```text
-/home/CPANEL_USER/apps/dolphinevents/shared/.env
+/home/dgwowuwr/dolphinevents.co.uk/.env
 ```
 
 Generate a new production application key on the local project computer:
@@ -107,7 +127,7 @@ Put the generated value in server `.env` as `APP_KEY`. At minimum, verify these 
 ```dotenv
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://YOUR_DOMAIN
+APP_URL=https://dolphinevents.co.uk
 
 DB_CONNECTION=mysql
 DB_HOST=localhost
@@ -124,14 +144,12 @@ Also copy the real production mail, Stripe, session, queue, filesystem, OTP, and
 The domain document root must be:
 
 ```text
-/home/CPANEL_USER/apps/dolphinevents/current/public
+/home/dgwowuwr/dolphinevents.co.uk/public
 ```
 
 For an addon domain or subdomain, open `cPanel > Domains > Manage`, change the document root, and use the path relative to the cPanel home directory.
 
 cPanel does not let account users change the primary domain document root. For a primary domain, ask MilesWeb support to point it to the path above. Do not expose the Laravel project root directly; only the `public` directory can be web-accessible.
-
-The `current` path does not exist until the first deploy. If cPanel requires an existing path, create a temporary empty `current/public` directory, configure the document root, and remove only that temporary `current` directory before starting the first GitHub deployment.
 
 ## 7. Capture and verify the server host key
 
@@ -156,9 +174,9 @@ Recommended: add a required reviewer so production deployment waits for approval
 Create these environment secrets:
 
 - `DEPLOY_HOST`: server hostname or IP address.
-- `DEPLOY_USER`: cPanel SSH username.
-- `DEPLOY_PORT`: SSH port only, for example `22`.
-- `DEPLOY_PATH`: `/home/CPANEL_USER/apps/dolphinevents`.
+- `DEPLOY_USER`: `dgwowuwr`.
+- `DEPLOY_PORT`: SSH port only, normally `22`.
+- `DEPLOY_PATH`: `/home/dgwowuwr/dolphinevents.co.uk`.
 - `DEPLOY_SSH_KEY`: complete content of `dolphinevents_cicd`, including the BEGIN and END lines.
 - `DEPLOY_KNOWN_HOSTS`: complete verified `ssh-keyscan` output.
 
@@ -170,8 +188,8 @@ Get-Content -Raw "$env:USERPROFILE\.ssh\dolphinevents_cicd"
 
 Create these environment variables, not secrets:
 
-- `PRODUCTION_URL`: `https://YOUR_DOMAIN`.
-- `DEPLOY_PHP_BINARY`: `php` or the confirmed absolute PHP 8.2 CLI path.
+- `PRODUCTION_URL`: `https://dolphinevents.co.uk`.
+- `DEPLOY_PHP_BINARY`: `/usr/local/bin/php`.
 - `KEEP_RELEASES`: `5`.
 
 No GitHub personal access token and no GitHub repository deploy key are required. The dedicated key connects GitHub Actions to cPanel; its public half belongs in cPanel and its private half belongs in the GitHub `production` environment secret.
@@ -188,11 +206,11 @@ The workflow will:
 4. Run the automated tests.
 5. Compile Blade views.
 6. Package the production application with `vendor` and `public/build`.
-7. Upload a new release over SSH.
-8. Link shared `.env` and `storage`.
-9. Run migrations and Laravel optimization.
-10. Switch the `current` symlink.
-11. Check `https://YOUR_DOMAIN/up`.
+7. Upload the build to `.deploy/releases/RELEASE_ID`.
+8. Back up the current app files to `.deploy/backups/RELEASE_ID`.
+9. Sync the new app files directly into `/home/dgwowuwr/dolphinevents.co.uk`.
+10. Run migrations and Laravel optimization.
+11. Check `https://dolphinevents.co.uk/up`.
 
 Future pushes to `main` repeat this process automatically. Pull requests run CI only and never receive production secrets.
 
@@ -203,10 +221,10 @@ This project runs `app:cleanup-ticket-holds` every minute. Without Laravel's sch
 Open `cPanel > Advanced > Cron Jobs`, choose `Once Per Minute`, and use this command with the confirmed PHP binary and cPanel username:
 
 ```bash
-/usr/bin/php /home/CPANEL_USER/apps/dolphinevents/current/artisan schedule:run >> /dev/null 2>&1
+/usr/local/bin/php /home/dgwowuwr/dolphinevents.co.uk/artisan schedule:run >> /dev/null 2>&1
 ```
 
-If the confirmed PHP binary is different, replace `/usr/bin/php`. The project currently sends its OTP and ticket mail directly, so a permanent queue worker is not required by the code found during this setup. Add a queue worker later if mail or jobs are changed to implement `ShouldQueue`.
+If the confirmed PHP binary changes later, replace `/usr/local/bin/php`. The project currently sends its OTP and ticket mail directly, so a permanent queue worker is not required by the code found during this setup. Add a queue worker later if mail or jobs are changed to implement `ShouldQueue`.
 
 ## 11. Local development requirement
 
@@ -222,14 +240,23 @@ The Node version must start with `v22`. CI reads the same version from `.nvmrc`.
 
 ## 12. Rollback
 
-The latest five releases remain under the server `releases` directory. To switch code back, first identify the previous release:
+The latest five backups remain under `.deploy/backups`. To restore code files from a backup, first identify the backup:
 
 ```bash
-ls -1dt /home/CPANEL_USER/apps/dolphinevents/releases/*
-readlink -f /home/CPANEL_USER/apps/dolphinevents/current
+ls -1dt /home/dgwowuwr/dolphinevents.co.uk/.deploy/backups/*
 ```
 
-Database migrations are not automatically reversed during code rollback. Take a database backup before risky schema releases, and review backward compatibility before changing the `current` symlink.
+Then restore one backup path:
+
+```bash
+BACKUP_PATH=/home/dgwowuwr/dolphinevents.co.uk/.deploy/backups/REPLACE_WITH_BACKUP_FOLDER
+rsync -a --delete --exclude='.env' --exclude='storage/' --exclude='.deploy/' "$BACKUP_PATH/" /home/dgwowuwr/dolphinevents.co.uk/
+cd /home/dgwowuwr/dolphinevents.co.uk
+/usr/local/bin/php artisan optimize:clear
+/usr/local/bin/php artisan optimize
+```
+
+Database migrations are not automatically reversed during code rollback. Take a database backup before risky schema releases, and review backward compatibility before restoring old code.
 
 ## Deployment behavior and security
 
@@ -238,7 +265,7 @@ Database migrations are not automatically reversed during code rollback. Take a 
 - Strict SSH host checking is enabled.
 - `.env`, runtime storage, tests, Git metadata, and `node_modules` are not uploaded.
 - Dependencies and compiled frontend assets are built by GitHub, so Composer and Node are not required on the cPanel server.
-- The application briefly enters maintenance mode only for migrations and release activation.
-- A failed activation returns the previous application from maintenance mode.
+- The application briefly enters maintenance mode only while files are synced and migrations run.
+- A failed activation restores the previous code files from the latest `.deploy/backups` folder where possible.
 - Dependabot checks GitHub Actions, Composer, and npm dependencies weekly.
 - Composer security advisories are reported in CI. They are currently informational because the existing lockfile contains package versions that the configured remote repository cannot safely update or reproduce as a complete dependency update.

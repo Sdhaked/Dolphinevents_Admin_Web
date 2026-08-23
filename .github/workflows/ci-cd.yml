@@ -1,12 +1,7 @@
 name: CI and Production Deploy
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  # CI/CD is paused for now. Run manually from the Actions tab only if needed.
   workflow_dispatch:
 
 permissions:
@@ -215,7 +210,7 @@ jobs:
             -o StrictHostKeyChecking=yes
           )
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          release_path="$DEPLOY_PATH/releases/$RELEASE_ID"
+          release_path="$DEPLOY_PATH/.deploy/releases/$RELEASE_ID"
 
           ssh "${ssh_options[@]}" "$remote" "mkdir -p '$release_path'"
           scp "${scp_options[@]}" "$RUNNER_TEMP/release.tar.gz" "$remote:$release_path/release.tar.gz"

@@ -20,100 +20,93 @@ fail() {
 [[ "$keep_releases" =~ ^[1-9][0-9]*$ ]] || fail 'Release retention must be positive.'
 [[ "$php_binary" == "php" || "$php_binary" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail 'Invalid PHP binary.'
 
-releases_path="$deployment_root/releases"
-shared_path="$deployment_root/shared"
-release_path="$releases_path/$release_id"
-current_link="$deployment_root/current"
-next_link="$deployment_root/.current-$release_id"
+command -v rsync >/dev/null 2>&1 || fail 'rsync is required on the server for direct deployment.'
 
-[[ "$release_path" == "$deployment_root/releases/"* ]] || fail 'Release path escaped deployment root.'
-[[ -f "$release_path/artisan" ]] || fail 'Release does not contain Laravel artisan.'
-[[ -f "$shared_path/.env" ]] || fail "Missing production environment file: $shared_path/.env"
+deploy_path="$deployment_root/.deploy"
+staging_root="$deploy_path/releases"
+backup_root="$deploy_path/backups"
+staging_path="$staging_root/$release_id"
+backup_path="$backup_root/$release_id"
+
+[[ "$staging_path" == "$deployment_root/.deploy/releases/"* ]] || fail 'Staging path escaped deployment root.'
+[[ "$backup_path" == "$deployment_root/.deploy/backups/"* ]] || fail 'Backup path escaped deployment root.'
+[[ -f "$staging_path/artisan" ]] || fail 'Uploaded release does not contain Laravel artisan.'
+[[ -f "$deployment_root/.env" ]] || fail "Missing production environment file: $deployment_root/.env"
 
 mkdir -p \
-    "$shared_path/storage/app/public" \
-    "$shared_path/storage/framework/cache/data" \
-    "$shared_path/storage/framework/sessions" \
-    "$shared_path/storage/framework/testing" \
-    "$shared_path/storage/framework/views" \
-    "$shared_path/storage/logs"
+    "$backup_path" \
+    "$deployment_root/storage/app/public" \
+    "$deployment_root/storage/framework/cache/data" \
+    "$deployment_root/storage/framework/sessions" \
+    "$deployment_root/storage/framework/testing" \
+    "$deployment_root/storage/framework/views" \
+    "$deployment_root/storage/logs"
 
-if [[ -e "$release_path/.env" || -L "$release_path/.env" ]]; then
-    rm -f -- "$release_path/.env"
-fi
-ln -s "$shared_path/.env" "$release_path/.env"
+rsync_excludes=(
+    --exclude='.env'
+    --exclude='storage/'
+    --exclude='.deploy/'
+)
 
-if [[ -e "$release_path/storage" || -L "$release_path/storage" ]]; then
-    rm -rf -- "$release_path/storage"
-fi
-ln -s "$shared_path/storage" "$release_path/storage"
-
-chmod -R ug+rwX "$shared_path/storage" "$release_path/bootstrap/cache"
-
-cd "$release_path"
-"$php_binary" artisan optimize:clear
-"$php_binary" artisan storage:link --force
-"$php_binary" artisan optimize
+rsync -a --delete "${rsync_excludes[@]}" "$deployment_root/" "$backup_path/"
 
 maintenance_enabled=0
-release_switched=0
-previous_release=""
-
-if [[ -L "$current_link" ]]; then
-    previous_release="$(readlink -f "$current_link")"
-fi
+deployed_new_files=0
 
 restore_service_on_error() {
     status=$?
 
-    if [[ "$release_switched" -eq 1 && -n "$previous_release" && -d "$previous_release" ]]; then
-        rollback_link="$deployment_root/.rollback-$release_id"
-        rm -f -- "$rollback_link"
-        ln -s "$previous_release" "$rollback_link"
-        mv -Tf "$rollback_link" "$current_link"
+    if [[ "$deployed_new_files" -eq 1 && -d "$backup_path" ]]; then
+        rsync -a --delete "${rsync_excludes[@]}" "$backup_path/" "$deployment_root/" || true
     fi
 
-    if [[ "$maintenance_enabled" -eq 1 && -f "$current_link/artisan" ]]; then
-        (cd "$current_link" && "$php_binary" artisan up) || true
+    if [[ "$maintenance_enabled" -eq 1 && -f "$deployment_root/artisan" ]]; then
+        (cd "$deployment_root" && "$php_binary" artisan up) || true
     fi
 
-    rm -f -- "$next_link"
     exit "$status"
 }
 
 trap restore_service_on_error ERR
 
-if [[ -f "$current_link/artisan" ]]; then
-    (cd "$current_link" && "$php_binary" artisan down --retry=60)
+if [[ -f "$deployment_root/artisan" ]]; then
+    (cd "$deployment_root" && "$php_binary" artisan down --retry=60)
     maintenance_enabled=1
 fi
 
+rsync -a --delete "${rsync_excludes[@]}" "$staging_path/" "$deployment_root/"
+deployed_new_files=1
+
+chmod -R ug+rwX "$deployment_root/storage" "$deployment_root/bootstrap/cache"
+
+cd "$deployment_root"
+"$php_binary" artisan optimize:clear
+"$php_binary" artisan storage:link --force
 "$php_binary" artisan migrate --force
-
-ln -s "$release_path" "$next_link"
-mv -Tf "$next_link" "$current_link"
-release_switched=1
-
+"$php_binary" artisan optimize
 "$php_binary" artisan up
 maintenance_enabled=0
-release_switched=0
 "$php_binary" artisan queue:restart || true
 
 trap - ERR
 
-active_release="$(readlink -f "$current_link")"
-mapfile -t release_directories < <(
-    find "$releases_path" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
-        | sort -nr \
-        | cut -d' ' -f2-
-)
+cleanup_old_directories() {
+    local root_path="$1"
 
-for ((index = keep_releases; index < ${#release_directories[@]}; index++)); do
-    old_release="${release_directories[$index]}"
+    [[ -d "$root_path" ]] || return 0
 
-    if [[ "$(readlink -f "$old_release")" != "$active_release" ]]; then
-        rm -rf -- "$old_release"
-    fi
-done
+    mapfile -t directories < <(
+        find "$root_path" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+            | sort -nr \
+            | cut -d' ' -f2-
+    )
 
-printf 'Release %s deployed successfully.\n' "$release_id"
+    for ((index = keep_releases; index < ${#directories[@]}; index++)); do
+        rm -rf -- "${directories[$index]}"
+    done
+}
+
+cleanup_old_directories "$staging_root"
+cleanup_old_directories "$backup_root"
+
+printf 'Release %s deployed directly to %s successfully.\n' "$release_id" "$deployment_root"
