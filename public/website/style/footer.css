@@ -2,182 +2,183 @@
              Footer
 ******************************* */
 footer {
-  background-color: rgb(29, 29, 29);
-  color: var(--color-text-200);
-  position: relative;
-  z-index: +5;
+    border-top: 1px solid rgb(98 189 233);
+    background-color: var(--color-bg-toggle-300);
+    color: var(--color-text-200);
+    position: relative;
+    z-index: +5;
 }
 
 /* ====> Footer Top */
 footer .foot-top {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--gap-col);
-  padding-top: 2.5rem;
-  padding-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gap-col);
+    padding-top: 2.5rem;
+    padding-bottom: 1.5rem;
 }
 
 /* ==> F-top > Box 1 */
 footer .foot-top .box-1 {
-  display: grid;
-  justify-content: space-between;
-  gap: var(--gap-card);
+    display: grid;
+    justify-content: space-between;
+    gap: var(--gap-card);
 }
 
 footer .foot-top .box-1 .f-logo {
-  width: 4rem;
+    width: 4rem;
 }
 
 footer .foot-top .box-1 ul {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
 }
 footer .foot-top .box-1 ul > * {
-  margin: 0.7rem var(--gap-card);
-  margin-left: 0;
+    margin: 0.7rem var(--gap-card);
+    margin-left: 0;
 }
 footer .foot-top .box-1 ul .nav-link {
-  font-size: 0.8rem;
-  color: var(--color-bg-200);
-  font-weight: 400;
-  word-wrap: normal;
-  text-transform: capitalize;
+    font-size: 0.8rem;
+    color: var(--color-bg-200);
+    font-weight: 400;
+    word-wrap: normal;
+    text-transform: capitalize;
 }
 footer .foot-top .box-1 ul .nav-link.active {
-  color: rgb(12, 190, 235);
+    color: rgb(12, 190, 235);
 }
 
 /* ==> F-top > Box 2 */
 footer .foot-top .box-2 p {
-  color: var(--color-text-toggle-off);
-  font-size: 0.8rem;
-  line-height: 1rem;
-  margin-top: 0.6rem;
+    color: var(--color-text-toggle-200);
+    font-size: 0.8rem;
+    line-height: 1rem;
+    margin-top: 0.6rem;
 }
 
 footer .foot-top .box-2 .title {
-  font-size: 1.2rem;
-  color: var(--color-bg-200);
-  font-weight: 500;
-  font-family: var(--font-primary);
+    font-size: 1.2rem;
+    color: var(--color-bg-200);
+    font-weight: 500;
+    font-family: var(--font-primary);
 }
 
 footer .foot-top .box-2 .i-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  padding-top: calc(var(--gap-card) / 3);
-  font-weight: 300;
-  display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    padding-top: calc(var(--gap-card) / 3);
+    font-weight: 300;
+    display: flex;
 }
 footer .foot-top .box-2 .i-list > *:not(:last-child) {
-  margin-right: calc(var(--gap-card) * 2);
+    margin-right: calc(var(--gap-card) * 2);
 }
 footer .foot-top .box-2 .i-list a {
-  color: var(--color-bg-200);
-  font-size: 0.8rem;
-  transition: var(--transition-ease);
+    color: var(--color-bg-200);
+    font-size: 0.8rem;
+    transition: var(--transition-ease);
 }
 footer .foot-top .box-2 .i-list a:hover {
-  color: var(--color-bg-100);
+    color: var(--color-bg-100);
 }
 footer .foot-top .box-2 .i-list a i {
-  margin-right: 0.5rem;
+    margin-right: 0.5rem;
 }
 
 /* ====> Footer Bottom */
 footer .foot-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.2rem 0;
-  border-top: 1px solid #3f3f3f;
-  position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 0;
+    border-top: 1px solid #6a696991;
+    position: relative;
 }
 footer .foot-bottom > *:not(:last-child) {
-  margin-right: var(--gap-card);
+    margin-right: var(--gap-card);
 }
 footer .foot-bottom .box-1 p {
-  color: var(--color-bg-300);
-  font-weight: 400;
-  font-size: 0.7rem;
-  margin: 0;
+    color: var(--color-bg-300);
+    font-weight: 400;
+    font-size: 0.7rem;
+    margin: 0;
 }
 footer .foot-bottom .box-2 .social-list a {
-  font-size: 1rem;
-  color: var(--color-bg-300);
+    font-size: 1rem;
+    color: var(--color-bg-300);
 }
 
 /* ****************************
 Back to top
 ******************************* */
 #myBtn {
-  position: absolute;
-  display: flex;
-  top: -1rem;
-  right: 50%;
-  z-index: +2;
-  cursor: pointer;
-  width: 3rem;
-  height: 3rem;
-  background-color: rgb(29, 29, 29);
-  border: 2px solid var(--my-secoundry);
-  color: var(--color-bg-100);
-  border-radius: 100%;
-  justify-content: center;
-  align-items: center;
-  font-size: 10px;
-  transition: var(--transition-ease);
+    position: absolute;
+    display: flex;
+    top: -1rem;
+    right: 50%;
+    z-index: +2;
+    cursor: pointer;
+    width: 3rem;
+    height: 3rem;
+    background-color: rgb(29, 29, 29);
+    border: 2px solid var(--my-secoundry);
+    color: var(--color-bg-100);
+    border-radius: 100%;
+    justify-content: center;
+    align-items: center;
+    font-size: 10px;
+    transition: var(--transition-ease);
 }
 
 #myBtn:hover {
-  background-color: var(--my-secoundry);
+    background-color: var(--my-secoundry);
 }
 
 #myBtn span {
-  text-decoration: none;
-  transition: var(--transition-ease);
+    text-decoration: none;
+    transition: var(--transition-ease);
 }
 
 #myBtn:hover span {
-  transform: translateY(-3px);
-  text-decoration: none;
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
+    transform: translateY(-3px);
+    text-decoration: none;
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
 }
 
 @media (max-width: 800px) {
-  footer .foot-top {
-    grid-template-columns: repeat(1, 1fr);
-  }
+    footer .foot-top {
+        grid-template-columns: repeat(1, 1fr);
+    }
 
-  footer .foot-top .box-2 .i-list {
-    flex-direction: column;
-  }
-  footer .foot-top .box-2 .i-list > *:not(:last-child) {
-    margin-right: 0;
-    margin-bottom: calc(var(--gap-card) * 2);
-  }
+    footer .foot-top .box-2 .i-list {
+        flex-direction: column;
+    }
+    footer .foot-top .box-2 .i-list > *:not(:last-child) {
+        margin-right: 0;
+        margin-bottom: calc(var(--gap-card) * 2);
+    }
 
-  #myBtn {
-    right: 0.5rem;
-    width: 2rem;
-    height: 2rem;
-    bottom: 25%;
-  }
-  #myBtn:hover span {
-    transform: translateY(0);
-  }
+    #myBtn {
+        right: 0.5rem;
+        width: 2rem;
+        height: 2rem;
+        bottom: 25%;
+    }
+    #myBtn:hover span {
+        transform: translateY(0);
+    }
 
-  /* ====> Footer Bottom */
-  footer .foot-bottom {
-    flex-direction: column;
-    justify-content: center;
-  }
-  footer .foot-bottom > *:not(:last-child) {
-    margin-right: 0;
-    margin-bottom: var(--gap-card);
-  }
+    /* ====> Footer Bottom */
+    footer .foot-bottom {
+        flex-direction: column;
+        justify-content: center;
+    }
+    footer .foot-bottom > *:not(:last-child) {
+        margin-right: 0;
+        margin-bottom: var(--gap-card);
+    }
 }

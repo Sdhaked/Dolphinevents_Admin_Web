@@ -21,13 +21,14 @@
   --color-bg-400: #F4FBFF;
   --color-bg-toggle: #1d2a47;
   --color-bg-toggle-200: #08255b;
+  --color-bg-toggle-300: #03163E;
 
   /* -- Status Color */
   --color-status-green: rgb(2, 168, 4);
   --color-status-red: #ff0000;
 
   /* --Border  */
-  --color-border-100: #e7eff5;
+  --color-border-100: #eeeeee57;
   --color-border-200: #dce9f2;
   --color-border-300: rgb(26 26 26 / 20%);
 
@@ -426,6 +427,8 @@ select::placeholder {
   }
 }
 
+
+
 /*----> Font */
 .font-prim {
   font-family: var(--font-prim) !important;
@@ -550,6 +553,16 @@ select::placeholder {
 .text-break {
   word-wrap: break-word !important;
   word-break: break-word !important;
+}
+
+.pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a9ddf7;
+    box-shadow: 0 0 0 6px rgba(169, 221, 247, 0.15);
+    margin-right: 0.2rem;
 }
 
 /* CLass for top/bottom spc in silk slider row  */

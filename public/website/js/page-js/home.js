@@ -5,8 +5,29 @@ const heroSwiper = new Swiper(".heroSwiper", {
   loop: true,
   autoHeight: true,
   speed: 1000,
+  effect: "fade",
   autoplay: {
-    delay: 2500,
+    delay: 4000,
+    disableOnInteraction: true,
+  },
+  // navigation: {
+  //   nextEl: ".swiper-button-next",
+  //   prevEl: ".swiper-button-prev",
+  // },
+  pagination: {
+    el: ".swiper-pagination",
+    dynamicBullets: true,
+    clickable: true,
+  },
+});
+
+const heroSwiperDef = new Swiper(".heroSwiperDef", {
+  loop: true,
+  autoHeight: true,
+  speed: 1000,
+  effect: "fade",
+  autoplay: {
+    delay: 4000,
     disableOnInteraction: true,
   },
   // navigation: {

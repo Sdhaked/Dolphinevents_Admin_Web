@@ -111,7 +111,8 @@ document.addEventListener("DOMContentLoaded", function () {
                                 alt="{{ $content->about_featured_image_alt }}" loading="lazy" decoding="async" />
                         </div>
                         <div>
-                            <{{ $content->about_heading_type ?? 'h3' }} class="hd-prim m-0">
+                            <h2 class="hd-prim">About us</h2>
+                            <{{ $content->about_heading_type ?? 'h3' }} class="hd-big m-0">
                                 {{ $content->about_heading_text }}
                                 </{{ $content->about_heading_type ?? 'h3' }}>
                         </div>
@@ -179,7 +180,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             <{{ $content->owner_heading_1_type ?? 'h3' }} class="hd-prim">
                                 {{ $content->owner_heading_1_text }}
                                 </{{ $content->owner_heading_1_type ?? 'h3' }}>
-                                <{{ $content->owner_heading_2_type ?? 'h3' }} class="hd-big text-prim">
+                                <{{ $content->owner_heading_2_type ?? 'h3' }} class="hd-big">
                                     {{ $content->owner_heading_2_text }}</{{ $content->owner_heading_2_type ?? 'h3' }}>
                                     {!! $content->owner_processed_description !!}
                         </div>
