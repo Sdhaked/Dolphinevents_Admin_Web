@@ -189,7 +189,7 @@
                             @error('applicable_ticket_type_ids.*')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                            <small>Leave all unchecked to make this service available for every ticket type.</small>
+                            <span class="text-100">Leave all unchecked to make this service available for every ticket type.</span>
                         </div>
 
                         <div class="d-flex flex-wrap gap-card">
