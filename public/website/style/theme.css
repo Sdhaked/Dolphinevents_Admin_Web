@@ -1,45 +1,47 @@
 :root {
   /* -- color  */
-  --my-primary: #000743;
-  --my-secoundry: #1c2580;
+  --my-primary: #003B85;
+  --my-secoundry: #006bc7;
 
   /* Text Colors */
   --color-text-100: #6b6b6b;
   --color-text-200: #4a4a4a;
   --color-text-300: #303030;
   --color-text-400: #1f1f1f;
-  --color-text-500: #0b0922;
+  --color-text-500: #08204e;
   --color-text-toggle: #ffffff;
-  --color-text-toggle-off: #fcfcfc;
+  --color-text-toggle-200: #c4d9ed;
+  --color-text-toggle-300: #a9ddf7;
+  
 
   /* -- Backgrounds */
   --color-bg-100: #ffffff;
   --color-bg-200: #f8f8f8;
-  --color-bg-300: #e9e9e9;
-  --color-bg-400: #eeeeee;
-  /* --color-bg-500: #031b38; */
+  --color-bg-300: #ECF3F6;
+  --color-bg-400: #F4FBFF;
   --color-bg-toggle: #1d2a47;
+  --color-bg-toggle-200: #08255b;
 
   /* -- Status Color */
   --color-status-green: rgb(2, 168, 4);
   --color-status-red: #ff0000;
 
   /* --Border  */
-  --color-border-100: rgba(184, 182, 182, 0.192);
-  --color-border-200: rgba(71, 71, 71, 0.192);
+  --color-border-100: #e7eff5;
+  --color-border-200: #dce9f2;
   --color-border-300: rgb(26 26 26 / 20%);
 
   /* --Border Radious */
-  --radius-prim: 0.6rem;
-  --radius-sec: 1rem;
+  --radius-prim: 1rem;
+  --radius-sec: 0.5rem;
 
   /* -- transition property */
   --transition-linear: all 0.4s linear;
   --transition-ease: all 0.5s ease;
 
   /* -- Font */
-  --font-primary: "Inter", sans-serif;
-  --font-secoundry: "Oswald", sans-serif;
+  --font-primary: "Manrope", sans-serif;
+  --font-secoundry: "DM Mono", monospace;
 
   /* --@Animation call */
   --aniTopBot: aniTopBot 3s infinite linear;
@@ -50,14 +52,14 @@
   --nav-link-hover-color: var(--my-secoundry);
   --nav-link-active-color: var(--my-primary);
   --nav-link-f-size: 0.9rem;
-  --nav-logo-width: 4rem;
+  --nav-logo-width: 2.8rem;
 
   /* Button Transission effect */
   --btn-transform: translateY(-2px);
   --hover-transform: translateY(-2px);
 
   /* Main Fontsize */
-  --f-size: 1rem;
+  --f-size: 0.9rem;
 
   /* gaps */
   --gap-col: 3.75rem;
@@ -124,7 +126,7 @@ body {
   line-height: calc(var(--f-size) + 0.2rem);
   color: var(--txt-200);
   width: 100%;
-  background: var(--color-bg-100);
+  background: var(--color-bg-400);
   overflow: hidden;
 }
 
@@ -150,6 +152,8 @@ h6 * {
 p {
   color: var(--color-text-200);
   margin-bottom: 0.7rem;
+  font-weight: 400;
+  line-height: calc(var(--f-size) + 0.5rem);
 }
 
 a {
@@ -266,6 +270,7 @@ form {
   display: grid;
   gap: var(--gap-form);
 }
+
 input,
 textarea,
 select {
@@ -388,7 +393,7 @@ select::placeholder {
 }
 
 .container {
-  width: 87%;
+  width: 82%;
   margin-right: auto;
   margin-left: auto;
 }
@@ -481,6 +486,19 @@ select::placeholder {
   background: var(--color-bg-200);
 }
 
+.dark-bg {
+  background: var(--color-bg-toggle-200);
+}
+.dark-bg .hd-prim {
+  color: var(--color-text-toggle-300);
+}
+.dark-bg .hd-big {
+  color: var(--color-text-toggle)
+}
+.dark-bg p {
+  color: var(--color-text-toggle-200)
+}
+
 /*----> Devider Classes */
 .hr {
   width: 70%;
@@ -494,6 +512,7 @@ select::placeholder {
   margin: 1.5rem 0;
   display: block;
 }
+
 
 /* ---> Flex Classes */
 .wrapp {

@@ -110,16 +110,32 @@
             </section>
         @endif
 
+    <div class="ticker">
+      <div class="ticker-inner">
+        LIVE MUSIC <b>✦</b> COMEDY <b>✦</b> FOOD &amp; DRINK <b>✦</b> NIGHTLIFE <b>✦</b> CULTURE <b>✦</b> FAMILY DAYS OUT <b>✦</b>
+        LIVE MUSIC <b>✦</b> COMEDY <b>✦</b> FOOD &amp; DRINK <b>✦</b> NIGHTLIFE <b>✦</b> CULTURE <b>✦</b> FAMILY DAYS OUT <b>✦</b>
+      </div>
+    </div>
+        
+
         @if ($content->featured_events->count() > 0)
             <!--==================================================
                       FEATURED EVENTS SECTION
             ======================================================-->
             <section class="container-fluid spc-y">
                 <div class="container">
-                    <div class="mb-prim">
+                    <div class="side-hd-holder">
+                       <div>
                         <h3 class="hd-prim">Our Top 
                         <!--<span class="text-prim">{{ $content->featured_events->count() }}</span>-->
                             Events</h3>
+                        <h3 class="hd-big">Trending near you
+                        <!--<span class="text-prim">{{ $content->featured_events->count() }}</span>--></h3>
+                       </div>
+
+                       <div>
+                           <a href="{{ route('website.about.index') }}" role="button" class="btn-sm btn-lite-outline hover-prim mt-spc">View all events ↗ </a>
+                       </div>
                     </div>
                     <div class="grid-archive-4 gap-card">
                         @foreach ($content->featured_events as $event)
@@ -134,7 +150,7 @@
             <!--==================================================
                    MINI ABOUT SECTION
             ======================================================-->
-            <section class="container-fluid spc-y bg-devider mini-about-sec">
+            <section class="container-fluid spc-y mini-about-sec dark-bg">
                 <div class="container">
                     <div class="grid-sec-2 gap-col">
                         <div>
@@ -145,19 +161,37 @@
                             </div>
                         </div>
                         <div>
-                            <div class="mb-prim">
+                            
                                 <{{ $content->about_heading_type_1 ?? 'h3' }} class="hd-prim">{{ $content->about_heading_text_1 }}
-                                    </{{ $content->about_heading_type_1 ?? 'h3' }}>
-                                    <{{ $content->about_heading_type_2 ?? 'h3' }} class="hd-big text-prim">
-                                        {{ $content->about_heading_text_2 }}
-                                        </{{ $content->about_heading_type_2 ?? 'h3' }}>
-                                        <!-- Description -->
-                                        {!! $content->about_processed_description !!}
+                                </{{ $content->about_heading_type_1 ?? 'h3' }}>
 
-                                        <a href="{{ route('website.about.index') }}" role="button"
-                                            class="btn-sm btn-lite-outline hover-prim mt-spc">Know more
-                                            <i class="fa-solid fa-arrow-right-long i-ml"></i></a>
-                            </div>
+                                <{{ $content->about_heading_type_2 ?? 'h3' }} class="hd-big">
+                                {{ $content->about_heading_text_2 }}
+                                </{{ $content->about_heading_type_2 ?? 'h3' }}>
+                                
+                                <!-- Description -->
+                                {!! $content->about_processed_description !!}
+
+                                <div class="about-points">
+                                  <div class="about-point">
+                                    <strong>Discover</strong>
+                                    <span>Unique UK events, all in one place.</span>
+                                  </div>
+                                  <div class="about-point">
+                                    <strong>Book</strong>
+                                    <span>Simple, secure and instant e-tickets.</span>
+                                  </div>
+                                  <div class="about-point">
+                                    <strong>Experience</strong>
+                                    <span>More moments worth sharing.</span>
+                                  </div>
+                                </div>
+
+                                <a href="{{ route('website.about.index') }}" role="button" class="btn-sm btn-lite-outline hover-prim mt-spc">
+                                    Know more
+                                    <i class="fa-solid fa-arrow-right-long i-ml"></i>
+                                </a>
+                            
                         </div>
                     </div>
                 </div>
@@ -225,20 +259,27 @@
         @endif
 
         <!--==================================================
-                                                              UPCOMING EVENTS SECTION
-                                                        ======================================================-->
+                     UPCOMING EVENTS SECTION
+        ======================================================-->
         @if ($hasUpcomingEvents)
         <section class="container-fluid spc-y">
             <div class="container">
-                <div class="mb-prim all-text-center">
-                    <h3 class="hd-prim">Upcoming Events</h3>
+                <div class="side-hd-holder">
+                    <div>
+                        <h3 class="hd-prim">Our Events</h3>
+                        <h3 class="hd-big">Time to enjoy</h3>
+                    </div>
+                    <div>
+                        <a href="{{ route('website.about.index') }}" role="button"     class="btn-sm btn-lite-outline hover-prim mt-spc">View all events ↗ </a>
+                    </div>
                 </div>
+
+                
                 <div class="grid-archive-4 gap-card">
                     @foreach ($content->upcoming_events as $event)
                         <x-website.event-archive-card :event="$event" />
                     @endforeach
                 </div>
-
                 <div class="center-btn-box">
                     <a href="{{ route('website.events.index') }}" class="btn-md btn-prim-outline hover-prim">
                         Explore All
@@ -275,24 +316,26 @@
             <!--================================================== 
             CALL TO ACTION SECTION 
             ======================================================-->
-            <section class="container-fluid spc-y-half calltoaction-sec">
-                <div class="container">
-                    <div class="row">
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <h3 class="hd-prim">Experianced With <span
-                                    style="color: #ffbf00;">{{ $content?->event_count-1 }}+</span> Events! _ Want To Organize Event with us?</h3>
-                            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Corporis distinctio ipsam quaerat, ut necessitatibus quis recusandae impedit, beatae, ratione vel deserunt suscipit fugit ipsa blanditiis enim praesentium. Sint, necessitatibus quod!</p>
-                            <div>
-                                <a href="{{ route('website.contact.index') }}" class="btn-md btn-prim-outline hover-prim-prim mt-prim">CONTACT US
-                                    <i class="fa-solid fa-arrow-right-long i-ml"></i></a>
-                            </div>
+            <section class="container-fluid spc-y dark-bg">
+                <div class="container calltoaction-container">
+                    <div>
+                        <h3 class="hd-prim">A one-night-only experience</h3>
+                        <h3 class="hd-big">Invented {{ $content?->event_count-1 }}+ events</h3>
+                        <p>Immerse yourself in an evening of music, movement and culture with award-winning artists and remarkable experiences arriving across the UK.</p>
+                        <div>
+                            <a href="{{ route('website.contact.index') }}"class="btn-md btn-prim-outline hover-prim-primmt-prim">CONTACT US
+                                <i class="fa-solid fa-arrow-right-long i-ml"></i></a>
                         </div>
-                        
                     </div>
 
+                    <div>
+                        <img src="	https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1100&q=85" alt="">
+                    </div>
                 </div>
             </section>
         @endif
+
+        
 
         @if ($content?->gallery->count() > 0)
             <!--==================================================
@@ -301,7 +344,8 @@
             <section class="container-fluid spc-y">
                 <div class="container">
                     <div class="mb-prim all-text-center">
-                        <h3 class="hd-prim">past event memories</h3>
+                        <h3 class="hd-prim">Gallery</h3>
+                        <h3 class="hd-big">Past event memories</h3>
                     </div>
                     <div class="grid-archive-4 gap-card" id="homeGalleryGrid" data-aos="fade-up">
                         @include('website.home._partials.gallery-items', ['images' => $content->gallery])
