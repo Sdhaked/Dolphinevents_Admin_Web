@@ -26,8 +26,20 @@
 <div class="pdf-container">
     @php
         // 1. Fetch the individual tickets created in the controller
-        $individualTickets = \App\Models\BookedTicket::where('ticket_counter_id', $booking->id)->get();
+        $individualTickets = \App\Models\BookedTicket::where('ticket_counter_id', $booking->id)->orderBy('id')->get();
         $totalItems = $individualTickets->count();
+        $ageGroupRows = collect($booking->ageGroups ?? [])
+            ->filter(fn ($ageGroup) => filled($ageGroup->label) && (int) $ageGroup->quantity > 0)
+            ->sortBy('id')
+            ->values();
+        $ageGroupSubTypeLabels = $ageGroupRows
+            ->flatMap(fn ($ageGroup) => array_fill(0, (int) $ageGroup->quantity, trim((string) $ageGroup->label)))
+            ->values();
+        $ageGroupFallbackLabel = $ageGroupRows
+            ->pluck('label')
+            ->map(fn ($label) => trim((string) $label))
+            ->unique()
+            ->implode(', ');
     @endphp
 
     @foreach($individualTickets as $index => $ticket)
@@ -38,6 +50,7 @@
                 $seatInfo = \App\Models\VenueLayout::find($ticket->venue_layout_id);
                 $seatLabel = $seatInfo ? "{$seatInfo->wing}-{$seatInfo->row}{$seatInfo->seat_number}" : "Seat #{$ticket->venue_layout_id}";
             }
+            $ticketSubTypeLabel = $ticket->sub_type_label ?: ($ageGroupSubTypeLabels->get($index) ?: $ageGroupFallbackLabel);
         @endphp
         <div class="ticket" style="{{ ($index + 1) < $totalItems ? 'page-break-after: always;' : '' }} margin-bottom: 30px;">
             <!-- <div class="hd-top-holder">
@@ -97,13 +110,11 @@
                             <h6>Ticket Type</h6>
                             <p style="color: #dc2926;">{{ $ticketType->title }}</p>
                         </div>
-                        @if(($booking->ageGroups?->count() ?? 0) > 0)
-                        <div class="details">
-                            <h6>Age Group Tickets</h6>
-                            @foreach($booking->ageGroups as $ageGroup)
-                                <p>{{ $ageGroup->label }}: {{ $ageGroup->quantity }}</p>
-                            @endforeach
-                        </div>
+                        @if($ticketSubTypeLabel)
+                            <div class="details">
+                                <h6>Sub Type</h6>
+                                <p>{{ $ticketSubTypeLabel }}</p>
+                            </div>
                         @endif
                         @if(($booking->services?->count() ?? 0) > 0)
                         <div class="details">

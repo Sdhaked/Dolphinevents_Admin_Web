@@ -50,8 +50,14 @@ class GalleryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'images' => 'required|array|max:10',
-            'images.*' => 'required|image|mimes:jpeg,png,jpg|max:200', // 200KB max
+            'images' => ['required', 'array', 'max:50'],
+            'images.*' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+        ], [
+            'images.required' => 'Please select at least one gallery image.',
+            'images.max' => 'You can upload a maximum of 50 gallery images at a time.',
+            'images.*.image' => 'Only image files are allowed.',
+            'images.*.mimes' => 'Gallery images must be jpeg, jpg, png, or webp.',
+            'images.*.max' => 'Each gallery image must be 5MB or smaller.',
         ]);
 
         $uploadedImages = [];
@@ -74,7 +80,7 @@ class GalleryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Images uploaded successfully!',
+            'message' => count($uploadedImages) . ' image(s) uploaded successfully!',
             'data' => $uploadedImages,
         ]);
     }
@@ -146,6 +152,30 @@ class GalleryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Image deleted successfully!'
+        ]);
+    }
+
+    public function destroyAll()
+    {
+        $deletedCount = 0;
+
+        Gallery::query()
+            ->select(['id', 'image_path'])
+            ->chunkById(100, function ($galleries) use (&$deletedCount) {
+                foreach ($galleries as $gallery) {
+                    $this->deletePublicFile($gallery->image_path);
+                }
+
+                $ids = $galleries->pluck('id');
+                Gallery::whereIn('id', $ids)->delete();
+                $deletedCount += $ids->count();
+            });
+
+        return response()->json([
+            'success' => true,
+            'message' => $deletedCount > 0
+                ? $deletedCount . ' gallery image(s) deleted successfully!'
+                : 'No gallery images found to delete.',
         ]);
     }
 }

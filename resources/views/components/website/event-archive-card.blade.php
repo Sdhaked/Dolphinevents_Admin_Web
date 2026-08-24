@@ -1,4 +1,4 @@
-@props(['event'])
+@props(['event', 'hideFooter' => false])
 
 @php
     $eventUrl = route('website.events.show', $event->slug);
@@ -8,6 +8,7 @@
     $formattedStartingTicketPrice = $startingTicketPrice !== null
         ? \App\Models\Currency::format($startingTicketPrice, $event)
         : null;
+    $eventAddress = trim((string) ($event->address ?? ''));
 @endphp
 
 <article {{ $attributes->merge(['class' => 'event-archive-card']) }}>
@@ -27,7 +28,9 @@
             <h3 class="title">{{ $event->title }}</h3>
         </a>
 
-        <address>The Roundhouse, London</address>
+        @if ($eventAddress !== '')
+            <address>{!! nl2br(e($eventAddress)) !!}</address>
+        @endif
         <p class="date-time">
             <time datetime="{{ $event->from_date->format('Y-m-d') }}">{{ $event->from_date->format('M j, Y') }}</time>
             @if ($event->to_date)
@@ -46,13 +49,15 @@
             @endif
         </p>
 
-        <div class="card-footer">
-           <div class="price">
-                {{ $formattedStartingTicketPrice ? 'From ' . $formattedStartingTicketPrice : 'Price TBA' }}
+        @unless($hideFooter)
+            <div class="card-footer">
+               <div class="price">
+                    {{ $formattedStartingTicketPrice ? 'From ' . $formattedStartingTicketPrice : 'Price TBA' }}
+                </div>
+               <div><a role="button" href="{{ $eventUrl }}" class="book-btn">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+               </a></div>
             </div>
-           <div><a role="button" href="{{ $eventUrl }}" class="book-btn">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-           </a></div>
-        </div>
+        @endunless
     </div>
 </article>

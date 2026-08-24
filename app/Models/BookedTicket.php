@@ -12,6 +12,9 @@ class BookedTicket extends Model
         'ticket_number',
         'booking_id',
         'venue_layout_id',
+        'ticket_counter_age_group_id',
+        'ticket_type_age_group_id',
+        'sub_type_label',
         'status',
         'scanned_at',
         'scanned_by'
@@ -35,5 +38,15 @@ class BookedTicket extends Model
     public function booking(): BelongsTo
     {
         return $this->belongsTo(TicketCounter::class, 'ticket_counter_id');
+    }
+
+    public function counterAgeGroup(): BelongsTo
+    {
+        return $this->belongsTo(TicketCounterAgeGroup::class, 'ticket_counter_age_group_id');
+    }
+
+    public function ticketTypeAgeGroup(): BelongsTo
+    {
+        return $this->belongsTo(TicketTypeAgeGroup::class, 'ticket_type_age_group_id');
     }
 }

@@ -59,7 +59,7 @@
 
                     <form class="gallery-form" showat="#img_box" onsubmit="uploadImages(event)"
                         enctype="multipart/form-data">
-                        <input type="file" multiple="" class="d-none" accept="image/jpeg, image/png, image/jpg">
+                        <input type="file" multiple="" class="d-none" accept="image/jpeg, image/png, image/jpg, image/webp">
                         <div>
                             <button type="button" class="btn-sm btn-sec">
                                 <i class="fa-regular fa-file-image"></i> Upload Images
@@ -86,6 +86,9 @@
                         <input type="search" class="form-control" id="search" placeholder="Search" />
                         <span class="search-base">Search By: Alt Text</span>
                     </div>
+                    <button type="button" class="btn-sm danger-fill-btn" id="deleteAllGalleryBtn">
+                        <i class="fa-solid fa-trash"></i> Delete All
+                    </button>
                 </div>
 
                 <!-- Data Table -->
@@ -160,9 +163,30 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" id="deleteAllGalleryModal" tabindex="-1" aria-labelledby="deleteAllGalleryModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h6 class="hd-sm m-0">Delete All Gallery Images</h6>
+                        <button type="button" data-bs-dismiss="modal" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">Are you sure you want to delete all gallery images?</p>
+                        <p class="mb-0 text-danger"><strong>This action cannot be undone.</strong></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-xs btn-sec-outline" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn-xs danger-fill-btn" id="confirmDeleteAllGalleryBtn">Delete All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 
     <script>
+        const galleryUploadBatchSize = 1;
+
         function getImageSources() {
             const imgBox = document.getElementById('img_box');
             const images = imgBox.querySelectorAll('img');
@@ -176,6 +200,14 @@
         }
 
         async function getImageFiles() {
+            const selectedImages = typeof imagesMap !== 'undefined' ? (imagesMap.get('#img_box') || []) : [];
+
+            if (selectedImages.length > 0) {
+                return selectedImages
+                    .map(image => image.file)
+                    .filter(Boolean);
+            }
+
             const sources = getImageSources();
             const files = [];
 
@@ -192,32 +224,68 @@
             return files;
         }
 
+        async function submitGalleryImageBatch(files) {
+            const formData = new FormData();
+
+            files.forEach(file => {
+                formData.append('images[]', file);
+            });
+
+            const response = await fetch("{{ route('admin.gallery.store') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.success) {
+                const firstError = data.errors ? Object.values(data.errors).flat()[0] : null;
+                throw new Error(firstError || data.message || 'Failed to upload gallery images');
+            }
+
+            return data;
+        }
+
         async function uploadImages(e) {
             e.preventDefault();
+            const galleryForm = e.target;
+            const submitButton = galleryForm.querySelector('button[type="submit"]');
+            const originalSubmitText = submitButton ? submitButton.innerHTML : '';
+
             if (actionLoader) {
                 actionLoader.style.display = 'flex';
             }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+
             try {
                 const files = await getImageFiles();
-                const formData = new FormData();
 
-                files.forEach((file, index) => {
-                    formData.append('images[]', file);
-                });
+                if (!files.length) {
+                    throw new Error('Please select at least one gallery image.');
+                }
 
-                // Send request to your controller route
-                const response = await fetch("{{ route('admin.gallery.store') }}", {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: formData
-                });
+                let uploadedCount = 0;
 
-                const data = await response.json();
+                for (let i = 0; i < files.length; i += galleryUploadBatchSize) {
+                    const batch = files.slice(i, i + galleryUploadBatchSize);
 
-                if (data.success) {
-                    const galleryForm = e.target;
+                    if (submitButton) {
+                        submitButton.innerHTML = `Uploading ${Math.min(i + batch.length, files.length)} of ${files.length}...`;
+                    }
+
+                    await submitGalleryImageBatch(batch);
+                    uploadedCount += batch.length;
+                }
+
+                if (uploadedCount > 0) {
                     const imageBox = document.getElementById('img_box');
                     const imageInput = galleryForm.querySelector('input[type="file"]');
 
@@ -235,11 +303,17 @@
                     if (submitWrap) {
                         submitWrap.style.display = 'none';
                     }
-                    fetchData();
-                } else {
-                    console.error('Upload failed:', data.message);
+                    createNotification("success", `${uploadedCount} image(s) uploaded successfully!`, "");
+                    fetchData(1);
                 }
+            } catch (error) {
+                console.error('Upload failed:', error);
+                createNotification("error", error.message || "Failed to upload gallery images", "");
             } finally {
+                if (submitButton) {
+                    submitButton.innerHTML = originalSubmitText;
+                    submitButton.disabled = false;
+                }
                 if (actionLoader) {
                     actionLoader.style.display = 'none';
                 }
@@ -249,7 +323,10 @@
         const searchInput = document.getElementById("search");
         const tableContainer = document.getElementById("galleryTable");
         const deleteGalleryModalElement = document.getElementById('deleteGalleryModal');
+        const deleteAllGalleryModalElement = document.getElementById('deleteAllGalleryModal');
         const confirmDeleteGalleryBtn = document.getElementById('confirmDeleteGalleryBtn');
+        const deleteAllGalleryBtn = document.getElementById('deleteAllGalleryBtn');
+        const confirmDeleteAllGalleryBtn = document.getElementById('confirmDeleteAllGalleryBtn');
         const actionLoader = document.getElementById('actionLoader');
 
         let currentPage = 1;
@@ -336,6 +413,13 @@
             });
         });
 
+        if (deleteAllGalleryBtn) {
+            deleteAllGalleryBtn.addEventListener('click', function() {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(deleteAllGalleryModalElement);
+                modalInstance.show();
+            });
+        }
+
         confirmDeleteGalleryBtn.addEventListener('click', function() {
             if (!deleteUrl) return;
 
@@ -370,6 +454,47 @@
                     deleteUrl = null;
                 });
         });
+
+        if (confirmDeleteAllGalleryBtn) {
+            confirmDeleteAllGalleryBtn.addEventListener('click', function() {
+                const confirmBtn = this;
+                confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+                confirmBtn.disabled = true;
+
+                fetch("{{ route('admin.gallery.destroy_all') }}", {
+                    method: "DELETE",
+                    headers: {
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                    },
+                })
+                    .then(res => res.json().then(data => ({
+                        ok: res.ok,
+                        data
+                    })))
+                    .then(({ ok, data }) => {
+                        if (!ok || !data.success) {
+                            throw new Error(data.message || "Failed to delete gallery images");
+                        }
+
+                        const modalInstance = bootstrap.Modal.getInstance(deleteAllGalleryModalElement);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                        createNotification("success", data.message || "Gallery images deleted successfully", "");
+                        fetchData(1);
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        createNotification("error", err.message || "Failed to delete gallery images", "");
+                    })
+                    .finally(() => {
+                        confirmBtn.innerHTML = 'Delete All';
+                        confirmBtn.disabled = false;
+                    });
+            });
+        }
 
         // edit image
         const editGalleryForm = document.getElementById('editGalleryForm');

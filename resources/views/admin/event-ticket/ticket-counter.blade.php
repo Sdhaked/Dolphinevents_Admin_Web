@@ -136,9 +136,11 @@
                                     <option value="">Select Ticket Type</option>
                                     @if(isset($ticketTypes) && $ticketTypes->count() > 0)
                                         @foreach ($ticketTypes as $ticketType)
-                                            <option value="{{ $ticketType->id }}" data-price="{{ $ticketType->ticket_price }}"
-                                                data-title="{{ $ticketType->title }}">
-                                                {{ $ticketType->title }} - {{ $currency }}{{ number_format($ticketType->ticket_price, 2) }}
+                                            @php($displayTicketPrice = $ticketType->enable_age_group && $ticketType->ageGroups->count() ? $ticketType->ageGroups->min('price') : $ticketType->ticket_price)
+                                            <option value="{{ $ticketType->id }}" data-price="{{ $displayTicketPrice }}"
+                                                data-title="{{ $ticketType->title }}"
+                                                data-enable-age-group="{{ $ticketType->enable_age_group ? 1 : 0 }}">
+                                                {{ $ticketType->title }} - {{ $currency }}{{ number_format((float) $displayTicketPrice, 2) }}{{ $ticketType->enable_age_group ? ' onwards' : '' }}
                                             </option>
                                         @endforeach
                                     @else
@@ -149,11 +151,17 @@
                             </div>
 
                             <!-- Qty -->
-                            <div class="form-floating">
+                            <div class="form-floating" id="quantityField">
                                 <select class="form-select" id="quantity" name="quantity" required="">
                                     <option value="">Select Quantity</option>
                                 </select>
                                 <label for="quantity">Qty</label>
+                            </div>
+
+                            <div class="style-box" id="ageGroupSection" style="display: none;">
+                                <h6 class="hd-sm mb-2">Ticket Age Groups</h6>
+                                <div class="grid-1 gap-card" id="ageGroupRows"></div>
+                                <small class="text-danger" id="ageGroupError" style="display:none;margin-top:6px;"></small>
                             </div>
 
                             <!-- Name -->
@@ -317,6 +325,7 @@ let currentQuantity = 0;
 let appliedCoupon = null;
 let pollInterval = null;
 let lastAvailableTickets = null;
+let currentAgeGroups = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     if (!EVENT_ID) {
@@ -468,6 +477,7 @@ function handleTicketTypeChange() {
     const option = select.options[select.selectedIndex];
 
     if (!select.value) {
+        renderAgeGroupFields([]);
         resetAll();
         disableCouponSection();
         return;
@@ -492,6 +502,7 @@ function fetchAvailableQuantity() {
         .then(r => r.json())
         .then(data => {
             lastAvailableTickets = data.available_tickets;
+            renderAgeGroupFields(data.enable_age_group ? data.age_groups : []);
             updateQuantityOptions(data.available_tickets);
             resetBill();
             hidePromoteMessage();
@@ -502,6 +513,13 @@ function fetchAvailableQuantity() {
 function updateQuantityOptions(available) {
     const select = document.getElementById('quantity');
     const prev = select.value;
+
+    if (isAgeGroupMode()) {
+        select.innerHTML = '<option value="">Age group quantity</option>';
+        select.disabled = true;
+        select.required = false;
+        return;
+    }
 
     select.innerHTML = '<option value="">Select Quantity</option>';
 
@@ -520,13 +538,16 @@ function updateQuantityOptions(available) {
 }
 
 function handleQuantityChange() {
-    const qty = parseInt(document.getElementById('quantity').value);
+    const qty = resolveTicketQuantity();
     if (!qty || !currentTicketType) {
         disableCouponSection();
         return resetBill();
     }
 
-    currentQuantity = qty;
+    if (!validateAgeGroupSelection()) {
+        disableCouponSection();
+        return resetBill();
+    }
     
     // Enable coupon section when both ticket type and quantity are selected
     enableCouponSection();
@@ -555,9 +576,114 @@ function disableCouponSection() {
 }
 
 function resetQuantityOptions() {
+    currentAgeGroups = [];
     const quantitySelect = document.getElementById('quantity');
     quantitySelect.innerHTML = '<option value="">Select Quantity</option>';
     quantitySelect.disabled = false;
+    quantitySelect.required = true;
+    document.getElementById('quantityField').style.display = '';
+}
+
+function isAgeGroupMode() {
+    return currentAgeGroups.length > 0;
+}
+
+function collectAgeGroupItems() {
+    return Array.from(document.querySelectorAll('.admin-age-group-qty'))
+        .map((select) => ({
+            id: Number(select.dataset.id),
+            quantity: Number(select.value || 0),
+        }))
+        .filter((item) => item.id && item.quantity > 0);
+}
+
+function resolveTicketQuantity() {
+    if (isAgeGroupMode()) {
+        currentQuantity = collectAgeGroupItems().reduce((sum, item) => sum + item.quantity, 0);
+        return currentQuantity;
+    }
+
+    currentQuantity = parseInt(document.getElementById('quantity').value || 0, 10);
+    return currentQuantity;
+}
+
+function renderAgeGroupFields(ageGroups = []) {
+    currentAgeGroups = Array.isArray(ageGroups) ? ageGroups.filter(group => Number(group.available_tickets || 0) > 0) : [];
+
+    const section = document.getElementById('ageGroupSection');
+    const rows = document.getElementById('ageGroupRows');
+    const quantityField = document.getElementById('quantityField');
+    const quantitySelect = document.getElementById('quantity');
+    const error = document.getElementById('ageGroupError');
+
+    rows.innerHTML = '';
+    error.style.display = 'none';
+
+    if (!isAgeGroupMode()) {
+        section.style.display = 'none';
+        quantityField.style.display = '';
+        quantitySelect.disabled = false;
+        quantitySelect.required = true;
+        return;
+    }
+
+    section.style.display = 'block';
+    quantityField.style.display = 'none';
+    quantitySelect.disabled = true;
+    quantitySelect.required = false;
+
+    rows.innerHTML = currentAgeGroups.map((group) => {
+        const maxQty = Math.min(Number(group.max_quantity_per_booking || 20), Number(group.available_tickets || 0), 20);
+        const minQty = group.is_compulsory ? 1 : 0;
+        const options = Array.from({ length: Math.max(0, maxQty - minQty + 1) }, (_, index) => index + minQty)
+            .map(qty => `<option value="${qty}">${qty}</option>`)
+            .join('');
+
+        return `
+            <div class="style-box">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-card">
+                    <div>
+                        <h6 class="hd-sm mb-1">${group.label}</h6>
+                        <p class="mb-0">{{ $currency }}${Number(group.price || 0).toFixed(2)} /- [${group.available_tickets} Available]</p>
+                    </div>
+                    <div class="form-floating" style="min-width: 140px;">
+                        <select class="form-select admin-age-group-qty" data-id="${group.id}" required>
+                            ${options}
+                        </select>
+                        <label>Qty</label>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    rows.querySelectorAll('.admin-age-group-qty').forEach((field) => {
+        field.addEventListener('change', handleQuantityChange);
+    });
+}
+
+function validateAgeGroupSelection() {
+    const error = document.getElementById('ageGroupError');
+
+    if (!isAgeGroupMode()) {
+        return true;
+    }
+
+    const quantity = resolveTicketQuantity();
+    if (quantity <= 0) {
+        error.textContent = 'Please select at least one age-group ticket.';
+        error.style.display = 'block';
+        return false;
+    }
+
+    if (quantity > 20) {
+        error.textContent = 'Maximum 20 tickets allowed in one booking.';
+        error.style.display = 'block';
+        return false;
+    }
+
+    error.style.display = 'none';
+    return true;
 }
 
 /* ---------------- BULK DISCOUNT ---------------- */
@@ -568,7 +694,8 @@ function checkBulkDiscount() {
         body: JSON.stringify({
             event_id: EVENT_ID,
             ticket_type_id: currentTicketType,
-            quantity: currentQuantity
+            quantity: resolveTicketQuantity(),
+            age_group_items: collectAgeGroupItems()
         })
     })
     .then(r => r.json())
@@ -636,7 +763,8 @@ function applyCoupon() {
             event_id: EVENT_ID,
             ticket_type_id: currentTicketType,
             coupon_code: code,
-            quantity: currentQuantity
+            quantity: resolveTicketQuantity(),
+            age_group_items: collectAgeGroupItems()
         })
     })
     .then(r => r.json())
@@ -708,10 +836,11 @@ function calculateBill() {
         body: JSON.stringify({
             event_id: EVENT_ID,
             ticket_type_id: currentTicketType,
-            quantity: currentQuantity,
+            quantity: resolveTicketQuantity(),
             coupon_code: appliedCoupon?.coupon_code || null,
             parking_slots: activeSlotsCount || 0,
-            car_details: carNumbers
+            car_details: carNumbers,
+            age_group_items: collectAgeGroupItems()
         })
     })
     .then(r => r.json())
@@ -722,11 +851,24 @@ function calculateBill() {
 /* ---------------- Update Bill Display ---------------- */
 
 function updateBillDisplay(data) {
+    if (data.success === false) {
+        createNotification("error", data.message || "Unable to calculate bill", "");
+        resetBill();
+        return;
+    }
+
     //console.log(data);
     // 1. Ticket Base Price
     document.getElementById('ticketPriceRow').style.display = 'table-row';
-    document.getElementById('ticketPriceDetails').innerHTML =
-        `${data.ticket_price}/- <i class="fa-solid fa-xmark mx-2"></i> ${data.quantity} pcs`;
+
+    if (Array.isArray(data.age_group_items) && data.age_group_items.length) {
+        document.getElementById('ticketPriceDetails').innerHTML = data.age_group_items.map(item =>
+            `${item.label}: ${item.price}/- <i class="fa-solid fa-xmark mx-2"></i> ${item.quantity} pcs`
+        ).join('<br>');
+    } else {
+        document.getElementById('ticketPriceDetails').innerHTML =
+            `${data.ticket_price}/- <i class="fa-solid fa-xmark mx-2"></i> ${data.quantity} pcs`;
+    }
     document.getElementById('ticketPriceAmount').textContent = `${data.subtotal}/-`;
 
     // 2. Parking tickets
@@ -840,6 +982,10 @@ function handleFormSubmit(e) {
         return;
     }
 
+    if (!validateAgeGroupSelection()) {
+        return;
+    }
+
     const btn = document.getElementById('buyTicketBtn');
     const btnText = btn.querySelector('.btn-text');
     const spinner = btn.querySelector('.spinner-border');
@@ -856,7 +1002,13 @@ function handleFormSubmit(e) {
     const formData = new FormData(e.target);
     formData.set('coupon_code', appliedCoupon?.coupon_code || '');
     formData.set('coupon_valid', appliedCoupon ? 'true' : 'false');
+    formData.set('quantity', resolveTicketQuantity() || '');
     formData.append('event_id', EVENT_ID);
+
+    collectAgeGroupItems().forEach((item, index) => {
+        formData.append(`age_group_items[${index}][id]`, item.id);
+        formData.append(`age_group_items[${index}][quantity]`, item.quantity);
+    });
     
     //Parking slots
     const activeSlotsCount = document.querySelectorAll('.car-slots-container .car-slot-item').length;

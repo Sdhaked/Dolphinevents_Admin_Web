@@ -188,7 +188,7 @@
                                 <tr>
                                     <th>Emergency</th>
                                     <td>
-                                       <button type="button" class="btn-xs btn-sec" onclick="regenerateAndSendEmail({{ $ticket->id }})">
+                                       <button type="button" class="btn-xs btn-sec" onclick="regenerateAndSendEmail({{ $ticket->id }}, this)">
                                            <i class="fa-solid fa-paper-plane me-1"></i> Regenerate PDF & Send Email
                                        </button>                                      
                                     </td>
@@ -372,8 +372,8 @@
         let pendingRestoreTicketId = null;
         let pendingRestoreButton = null;
 
-        function regenerateAndSendEmail(ticketId) {
-            const button = event.target.closest('button');
+        function regenerateAndSendEmail(ticketId, triggerButton) {
+            const button = triggerButton;
             const originalText = button.innerHTML;
             
             button.disabled = true;

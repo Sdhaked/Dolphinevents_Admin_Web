@@ -1521,6 +1521,91 @@ class EventController extends Controller
         )));
     }
 
+    private function normalizeAgeGroupItems($ageGroupItems): array
+    {
+        if (is_string($ageGroupItems)) {
+            $ageGroupItems = json_decode($ageGroupItems, true) ?? [];
+        }
+
+        if (is_string($ageGroupItems)) {
+            $ageGroupItems = json_decode($ageGroupItems, true) ?? [];
+        }
+
+        if (!is_array($ageGroupItems)) {
+            return [];
+        }
+
+        return array_values(array_filter($ageGroupItems, function ($item) {
+            return is_array($item) && max(0, (int) ($item['quantity'] ?? 0)) > 0;
+        }));
+    }
+
+    private function syncBookingAgeGroups(TicketCounter $booking, $ageGroupItems)
+    {
+        $ageGroupItems = $this->normalizeAgeGroupItems($ageGroupItems);
+
+        if (!$booking->ageGroups()->exists()) {
+            foreach ($ageGroupItems as $ageGroupItem) {
+                $ageQuantity = max(0, (int) ($ageGroupItem['quantity'] ?? 0));
+
+                if ($ageQuantity <= 0) {
+                    continue;
+                }
+
+                TicketCounterAgeGroup::create([
+                    'ticket_counter_id' => $booking->id,
+                    'ticket_type_age_group_id' => $ageGroupItem['id'] ?? null,
+                    'label' => $ageGroupItem['label'] ?? 'Age Group',
+                    'quantity' => $ageQuantity,
+                    'price' => (float) ($ageGroupItem['price'] ?? 0),
+                    'total_amount' => (float) ($ageGroupItem['total'] ?? ($ageQuantity * (float) ($ageGroupItem['price'] ?? 0))),
+                ]);
+            }
+        }
+
+        return $booking->ageGroups()->orderBy('id')->get();
+    }
+
+    private function expandAgeGroupTicketAssignments($ageGroupRows): array
+    {
+        $assignments = [];
+
+        foreach ($ageGroupRows as $ageGroupRow) {
+            $quantity = max(0, (int) $ageGroupRow->quantity);
+
+            for ($i = 0; $i < $quantity; $i++) {
+                $assignments[] = [
+                    'ticket_counter_age_group_id' => $ageGroupRow->id,
+                    'ticket_type_age_group_id' => $ageGroupRow->ticket_type_age_group_id,
+                    'sub_type_label' => $ageGroupRow->label,
+                ];
+            }
+        }
+
+        return $assignments;
+    }
+
+    private function syncBookedTicketAgeGroupAssignments(TicketCounter $booking, array $ticketAgeGroupAssignments): void
+    {
+        if (empty($ticketAgeGroupAssignments)) {
+            return;
+        }
+
+        $booking->bookedTickets()->orderBy('id')->get()->each(function ($ticket, $index) use ($ticketAgeGroupAssignments) {
+            $assignment = $ticketAgeGroupAssignments[$index] ?? null;
+
+            if (!$assignment) {
+                return;
+            }
+
+            $ticket->forceFill([
+                'ticket_counter_age_group_id' => $assignment['ticket_counter_age_group_id'] ?? null,
+                'ticket_type_age_group_id' => $assignment['ticket_type_age_group_id'] ?? null,
+                'sub_type_label' => $assignment['sub_type_label'] ?? null,
+            ])->save();
+        });
+    }
+
     // Stripe
     public function createStripeCheckout(Request $request)
     {
@@ -1758,8 +1843,8 @@ class EventController extends Controller
             'quantity' => 1,
         ]],
         'currency' => $currencyCode,
-        'success_url' => route('website.events.checkout.success', ['payment_transaction_id' => $paymentTransaction->id]) . '&session_id={CHECKOUT_SESSION_ID}',
-        'cancel_url'  => route('website.events.checkout.cancel', ['payment_transaction_id' => $paymentTransaction->id]),
+        'success_url' => route('website.events.checkout.stripe.success', ['paymentTransaction' => $paymentTransaction->id]),
+        'cancel_url'  => route('website.events.checkout.stripe.cancel', ['paymentTransaction' => $paymentTransaction->id]),
         'metadata' => [
             'payment_transaction_id' => (string) $paymentTransaction->id,
             'name'        => $request->name,
@@ -2242,8 +2327,8 @@ class EventController extends Controller
                     'quantity' => 1,
                 ]],
                 'currency' => $currencyCode,
-                'success_url' => route('website.events.checkout.success', ['payment_transaction_id' => $paymentTransaction->id]) . '&session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url'  => route('website.events.checkout.cancel', ['payment_transaction_id' => $paymentTransaction->id]),
+                'success_url' => route('website.events.checkout.stripe.success', ['paymentTransaction' => $paymentTransaction->id]),
+                'cancel_url'  => route('website.events.checkout.stripe.cancel', ['paymentTransaction' => $paymentTransaction->id]),
                 'metadata' => [
                     'payment_transaction_id' => (string) $paymentTransaction->id,
                     'pending_booking_id' => (string) $booking->id,
@@ -2944,18 +3029,25 @@ class EventController extends Controller
             ]);
         }
 
+        $ageGroupRows = $this->syncBookingAgeGroups($booking, $data['age_group_items'] ?? $hold->age_group_items ?? []);
+        $ticketAgeGroupAssignments = $this->expandAgeGroupTicketAssignments($ageGroupRows);
+
         for ($i = 0; $i < $quantity; $i++) {
             $seatId = $selectedSeats[$i] ?? null;
             $ticketNumber = $seatId
                 ? $booking->booking_id . "-S" . $seatId
                 : $booking->booking_id . "-T" . ($i + 1) . "-" . strtoupper(Str::random(4));
+            $ageGroupAssignment = $ticketAgeGroupAssignments[$i] ?? [];
 
             \App\Models\BookedTicket::create([
                 'ticket_counter_id' => $booking->id,
-                'booking_id'        => $booking->booking_id,
-                'ticket_number'     => $ticketNumber,
-                'venue_layout_id'   => $seatId,
-                'status'            => 'Not Scanned',
+                'booking_id' => $booking->booking_id,
+                'ticket_number' => $ticketNumber,
+                'venue_layout_id' => $seatId,
+                'ticket_counter_age_group_id' => $ageGroupAssignment['ticket_counter_age_group_id'] ?? null,
+                'ticket_type_age_group_id' => $ageGroupAssignment['ticket_type_age_group_id'] ?? null,
+                'sub_type_label' => $ageGroupAssignment['sub_type_label'] ?? null,
+                'status' => 'Not Scanned',
             ]);
         }
 
@@ -3097,21 +3189,30 @@ class EventController extends Controller
             'checkout_otp_resend_available_at' => null,
         ]);
 
+        $ageGroupRows = $this->syncBookingAgeGroups($booking, $ageGroupItems);
+        $ticketAgeGroupAssignments = $this->expandAgeGroupTicketAssignments($ageGroupRows);
+
         if (!$booking->bookedTickets()->exists()) {
             for ($i = 0; $i < $quantity; $i++) {
                 $seatId = $selectedSeats[$i] ?? null;
                 $ticketNumber = $seatId
                     ? $booking->booking_id . "-S" . $seatId
                     : $booking->booking_id . "-T" . ($i + 1) . "-" . strtoupper(Str::random(4));
+                $ageGroupAssignment = $ticketAgeGroupAssignments[$i] ?? [];
 
                 \App\Models\BookedTicket::create([
                     'ticket_counter_id' => $booking->id,
                     'booking_id' => $booking->booking_id,
                     'ticket_number' => $ticketNumber,
                     'venue_layout_id' => $seatId,
+                    'ticket_counter_age_group_id' => $ageGroupAssignment['ticket_counter_age_group_id'] ?? null,
+                    'ticket_type_age_group_id' => $ageGroupAssignment['ticket_type_age_group_id'] ?? null,
+                    'sub_type_label' => $ageGroupAssignment['sub_type_label'] ?? null,
                     'status' => 'Not Scanned',
                 ]);
             }
+        } else {
+            $this->syncBookedTicketAgeGroupAssignments($booking, $ticketAgeGroupAssignments);
         }
 
         if (!empty($selectedSeats)) {
@@ -3160,25 +3261,6 @@ class EventController extends Controller
             }
         }
 
-        if (!$booking->ageGroups()->exists()) {
-            foreach ($ageGroupItems as $ageGroupItem) {
-                $ageQuantity = max(0, (int) ($ageGroupItem['quantity'] ?? 0));
-
-                if ($ageQuantity <= 0) {
-                    continue;
-                }
-
-                TicketCounterAgeGroup::create([
-                    'ticket_counter_id' => $booking->id,
-                    'ticket_type_age_group_id' => $ageGroupItem['id'] ?? null,
-                    'label' => $ageGroupItem['label'] ?? 'Age Group',
-                    'quantity' => $ageQuantity,
-                    'price' => (float) ($ageGroupItem['price'] ?? 0),
-                    'total_amount' => (float) ($ageGroupItem['total'] ?? ($ageQuantity * (float) ($ageGroupItem['price'] ?? 0))),
-                ]);
-            }
-        }
-
         $hold->delete();
 
         return $booking->fresh(['parkings', 'services', 'ageGroups', 'ticketType', 'event']);
@@ -3198,15 +3280,18 @@ class EventController extends Controller
     }
 
     // Payment complete and record the tickets in the table, then verify email before ticket mail.
-    public function stripeSuccess(Request $request)
+    public function stripeSuccess(Request $request, ?PaymentTransaction $paymentTransaction = null)
     {
-    if (!$request->filled('session_id')) {
+    $paymentTransactionId = $paymentTransaction?->id ?? $request->input('payment_transaction_id');
+    $sessionId = $request->input('session_id') ?: $paymentTransaction?->gateway_session_id;
+
+    if (!$sessionId) {
         return redirect()->route('website.events.index')->with('error', 'Missing payment session.');
     }
 
     Stripe::setApiKey(config('services.stripe.secret'));
-    $session = Session::retrieve($request->session_id);
-    $paymentTransaction = $this->findPaymentTransactionForSession($session, $request->input('payment_transaction_id'));
+    $session = Session::retrieve($sessionId);
+    $paymentTransaction = $this->findPaymentTransactionForSession($session, $paymentTransactionId);
     $transactionId = $this->stripeTransactionId($session);
     $paymentCompletedAt = ($session->payment_status ?? null) === 'paid' ? now() : null;
 
@@ -3649,9 +3734,9 @@ class EventController extends Controller
     }
 
 
-    public function stripeCancel(Request $request)
+    public function stripeCancel(Request $request, ?PaymentTransaction $paymentTransaction = null)
     {
-        $paymentTransaction = PaymentTransaction::find($request->input('payment_transaction_id'));
+        $paymentTransaction ??= PaymentTransaction::find($request->input('payment_transaction_id'));
 
         if ($paymentTransaction && $paymentTransaction->status === PaymentTransaction::STATUS_INITIATED) {
             $payload = $paymentTransaction->raw_payload;

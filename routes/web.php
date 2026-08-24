@@ -92,6 +92,7 @@ Route::prefix('admin')->middleware(['auth', SetActiveEvent::class])->group(funct
     Route::controller(AdminGalleryController::class)->prefix('gallery')->group(function () {
         Route::get('/', 'index')->name('admin.gallery.index');
         Route::post('/', 'store')->name('admin.gallery.store');
+        Route::delete('/delete-all', 'destroyAll')->name('admin.gallery.destroy_all');
         Route::post('/{id}', 'update')->name('admin.gallery.update');
         Route::delete('/{id}', 'destroy')->name('admin.gallery.destroy');
     });
@@ -462,6 +463,8 @@ Route::controller(WebsiteEventController::class)->prefix('events')->group(functi
     Route::get('checkout/states/{countryId}', 'getStates')->name('website.events.checkout.states');
 
     // Stripe redirects
+    Route::get('checkout/stripe-success/{paymentTransaction}', 'stripeSuccess')->name('website.events.checkout.stripe.success');
+    Route::get('checkout/stripe-cancel/{paymentTransaction}', 'stripeCancel')->name('website.events.checkout.stripe.cancel');
     Route::get('checkout/success', 'stripeSuccess')->name('website.events.checkout.success');
 
     Route::get('checkout/cancel', 'stripeCancel')->name('website.events.checkout.cancel');

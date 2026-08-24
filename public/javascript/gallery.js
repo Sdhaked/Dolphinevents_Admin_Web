@@ -1,4 +1,7 @@
 const imagesMap = new Map(); // Store images for each gallery
+const galleryMaxImages = 50;
+const galleryMaxImageSize = 5 * 1024 * 1024;
+const galleryAllowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
 const toggleSubmitButton = (showTo, hasImages) => {
     const imageContainer = document.querySelector(`${showTo}`);
@@ -16,6 +19,27 @@ const imgSelectorFun = (inputImgs, gForm, showTo) => {
     let image = inputImgs.files;
 
     for (let i = 0; i < image.length; i++) {
+        if (imagesData.length >= galleryMaxImages) {
+            if (typeof createNotification === "function") {
+                createNotification("error", `Maximum ${galleryMaxImages} gallery images can be uploaded at a time.`, "");
+            }
+            break;
+        }
+
+        if (!galleryAllowedTypes.includes(image[i].type)) {
+            if (typeof createNotification === "function") {
+                createNotification("error", `${image[i].name} is not a supported image type.`, "");
+            }
+            continue;
+        }
+
+        if (image[i].size > galleryMaxImageSize) {
+            if (typeof createNotification === "function") {
+                createNotification("error", `${image[i].name} must be 5MB or smaller.`, "");
+            }
+            continue;
+        }
+
         imagesData.push({
             name: image[i].name,
             url: URL.createObjectURL(image[i]),

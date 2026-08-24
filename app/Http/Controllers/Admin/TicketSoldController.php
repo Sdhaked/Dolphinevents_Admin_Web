@@ -513,6 +513,7 @@ class TicketSoldController extends Controller
         try {
             $booking = TicketCounter::withTrashed()->with(['parkings', 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->sendTicketEmail($booking);
+            $booking->forceFill(['ticket_email_sent_at' => now()])->save();
             $hasParking = $booking->parkings && $booking->parkings->count() > 0;
 
             return response()->json([

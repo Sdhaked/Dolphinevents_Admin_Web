@@ -12,17 +12,14 @@ use App\Models\State;
 use App\Models\EventContestent;
 use App\Models\EventContestentVote;
 use App\Models\EventService;
-use App\Models\TicketTypeAgeGroup;
+use App\Models\TicketCounterAgeGroup;
+use App\Models\TicketCounterService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-use Barryvdh\DomPDF\Facade\Pdf;
-use App\Mail\EventTicketMail;
+use App\Services\TicketPdfService;
 
 class TicketCounterApiController extends Controller
 {
@@ -57,7 +54,7 @@ class TicketCounterApiController extends Controller
      */
     public function getAvailableQuantity($ticketTypeId)
     {
-        $ticketType = TicketType::findOrFail($ticketTypeId);
+        $ticketType = TicketType::with('ageGroups')->findOrFail($ticketTypeId);
         
         // Calculate actual stock based on database records
         $soldCount = TicketCounter::where('ticket_type_id', $ticketTypeId)
@@ -72,10 +69,34 @@ class TicketCounterApiController extends Controller
         // Apply the cap: use min() to ensure it never exceeds 20
         $availableToDisplay = min($actualRemaining, 20);
 
+        $ageGroups = $ticketType->enable_age_group
+            ? $ticketType->ageGroups->map(function ($ageGroup) {
+                $sold = TicketCounterAgeGroup::where('ticket_type_age_group_id', $ageGroup->id)
+                    ->whereHas('booking', function ($query) {
+                        $query->withTrashed()->whereIn('booking_status', $this->activeBookingStatuses());
+                    })
+                    ->sum('quantity');
+                $remaining = (int) $ageGroup->total_tickets > 0
+                    ? max(0, (int) $ageGroup->total_tickets - (int) $sold)
+                    : 20;
+
+                return [
+                    'id' => $ageGroup->id,
+                    'label' => $ageGroup->label,
+                    'price' => (float) $ageGroup->price,
+                    'available_tickets' => min($remaining, 20),
+                    'max_quantity_per_booking' => min(max(1, (int) $ageGroup->max_quantity_per_booking), 20),
+                    'is_compulsory' => (bool) $ageGroup->is_compulsory,
+                ];
+            })->values()
+            : collect();
+
         return response()->json([
             'available_tickets' => max(0, $availableToDisplay), // Ensure we don't return negative numbers
             'ticket_price' => $ticketType->ticket_price,
-            'title' => $ticketType->title
+            'title' => $ticketType->title,
+            'enable_age_group' => (bool) $ticketType->enable_age_group,
+            'age_groups' => $ageGroups,
         ]);
     }
 
@@ -101,6 +122,137 @@ class TicketCounterApiController extends Controller
         }
 
         return (int) ($request->quantity ?? 1);
+    }
+
+    private function activeBookingStatuses(): array
+    {
+        return [
+            TicketCounter::STATUS_CONFIRMED,
+            TicketCounter::STATUS_PENDING_VERIFICATION,
+            TicketCounter::STATUS_PENDING_PAYMENT,
+        ];
+    }
+
+    private function normalizeSelectedSeats(Request $request): array
+    {
+        $selectedSeats = is_array($request->selected_seats ?? null)
+            ? $request->selected_seats
+            : [];
+
+        return array_values(array_unique(array_filter($selectedSeats, fn ($seatId) => filled($seatId))));
+    }
+
+    private function availableTicketQuantity(TicketType $ticketType): int
+    {
+        $soldCount = TicketCounter::withTrashed()
+            ->where('ticket_type_id', $ticketType->id)
+            ->whereIn('booking_status', $this->activeBookingStatuses())
+            ->sum('qty');
+
+        return max(0, (int) $ticketType->total_tickets - (int) $soldCount);
+    }
+
+    private function resolveAgeGroupItems(TicketType $ticketType, Request $request, array $selectedSeats)
+    {
+        if (!$ticketType->enable_age_group || !empty($selectedSeats)) {
+            return collect();
+        }
+
+        $ageGroups = $ticketType->relationLoaded('ageGroups')
+            ? $ticketType->ageGroups
+            : $ticketType->ageGroups()->get();
+
+        if ($ageGroups->isEmpty()) {
+            return collect();
+        }
+
+        $requestedAgeGroups = collect(is_array($request->age_group_items ?? null) ? $request->age_group_items : [])
+            ->mapWithKeys(fn ($item) => [(int) ($item['id'] ?? 0) => max(0, (int) ($item['quantity'] ?? 0))]);
+
+        $ageGroupItems = collect();
+
+        foreach ($ageGroups as $ageGroup) {
+            $requestedQuantity = (int) ($requestedAgeGroups[$ageGroup->id] ?? 0);
+
+            if ($ageGroup->is_compulsory && $requestedQuantity <= 0) {
+                throw new \RuntimeException($ageGroup->label . ' age group is compulsory.');
+            }
+
+            if ($requestedQuantity <= 0) {
+                continue;
+            }
+
+            $maxPerBooking = min(max(1, (int) $ageGroup->max_quantity_per_booking), 20);
+            if ($requestedQuantity > $maxPerBooking) {
+                throw new \RuntimeException("Maximum {$maxPerBooking} {$ageGroup->label} tickets are allowed per booking.");
+            }
+
+            if ((int) $ageGroup->total_tickets > 0) {
+                $sold = TicketCounterAgeGroup::where('ticket_type_age_group_id', $ageGroup->id)
+                    ->whereHas('booking', function ($query) {
+                        $query->withTrashed()->whereIn('booking_status', $this->activeBookingStatuses());
+                    })
+                    ->sum('quantity');
+                $available = max(0, (int) $ageGroup->total_tickets - (int) $sold);
+
+                if ($requestedQuantity > $available) {
+                    throw new \RuntimeException("Only {$available} {$ageGroup->label} tickets remaining.");
+                }
+            }
+
+            $ageGroupItems->push([
+                'id' => $ageGroup->id,
+                'label' => $ageGroup->label,
+                'quantity' => $requestedQuantity,
+                'price' => (float) $ageGroup->price,
+                'total' => round($requestedQuantity * (float) $ageGroup->price, 2),
+            ]);
+        }
+
+        if ($ageGroupItems->isEmpty()) {
+            throw new \RuntimeException('Please select at least one age-group ticket.');
+        }
+
+        return $ageGroupItems->values();
+    }
+
+    private function parseMoney($value): float
+    {
+        return (float) preg_replace('/[^0-9.]/', '', (string) $value);
+    }
+
+    private function createBookingAgeGroups(TicketCounter $booking, array $ageGroupItems)
+    {
+        return collect($ageGroupItems)
+            ->filter(fn ($item) => max(0, (int) ($item['quantity'] ?? 0)) > 0)
+            ->map(function ($item) use ($booking) {
+                return TicketCounterAgeGroup::create([
+                    'ticket_counter_id' => $booking->id,
+                    'ticket_type_age_group_id' => $item['id'] ?? null,
+                    'label' => $item['label'] ?? 'Age Group',
+                    'quantity' => (int) $item['quantity'],
+                    'price' => (float) ($item['price'] ?? 0),
+                    'total_amount' => (float) ($item['total'] ?? ((int) $item['quantity'] * (float) ($item['price'] ?? 0))),
+                ]);
+            })
+            ->values();
+    }
+
+    private function expandAgeGroupTicketAssignments($ageGroupRows): array
+    {
+        $assignments = [];
+
+        foreach ($ageGroupRows as $ageGroupRow) {
+            for ($i = 0; $i < max(0, (int) $ageGroupRow->quantity); $i++) {
+                $assignments[] = [
+                    'ticket_counter_age_group_id' => $ageGroupRow->id,
+                    'ticket_type_age_group_id' => $ageGroupRow->ticket_type_age_group_id,
+                    'sub_type_label' => $ageGroupRow->label,
+                ];
+            }
+        }
+
+        return $assignments;
     }
 
     /**
@@ -251,52 +403,51 @@ class TicketCounterApiController extends Controller
      */
     public function calculateBill(Request $request)
     {
+        try {
+            return response()->json($this->buildBillData($request));
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    private function buildBillData(Request $request): array
+    {
         $eventId = $request->event_id ?? session('active_event_id');
         $ticket_type_id = $request->ticket_type_id;
-        
-        // Use the helper to resolve quantity
-        $quantity = $this->getResolvedQuantity($request);
-
         $couponCode = $request->coupon_code;
         $parkingSlots = (int) ($request->parking_slots ?? 0);
+        $selectedSeats = $this->normalizeSelectedSeats($request);
 
         $event = Event::findOrFail($eventId);
         $parkingPricePerSlot = $event->car_slot_price ?? 0;
         $ticketType = TicketType::with('ageGroups')->findOrFail($ticket_type_id);
-        
-        $ageGroupItems = collect();
-        if ($ticketType->enable_age_group && is_array($request->age_group_items ?? null)) {
-            $ageGroupIds = collect($request->age_group_items)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
-            $ageGroups = TicketTypeAgeGroup::where('ticket_type_id', $ticketType->id)
-                ->whereIn('id', $ageGroupIds)
-                ->get()
-                ->keyBy('id');
 
-            $ageGroupItems = collect($request->age_group_items)
-                ->map(function ($item) use ($ageGroups) {
-                    $ageGroup = $ageGroups->get((int) ($item['id'] ?? 0));
-                    $quantity = max(0, (int) ($item['quantity'] ?? 0));
-
-                    if (!$ageGroup || $quantity <= 0) {
-                        return null;
-                    }
-
-                    return [
-                        'id' => $ageGroup->id,
-                        'label' => $ageGroup->label,
-                        'quantity' => min($quantity, (int) $ageGroup->max_quantity_per_booking),
-                        'price' => (float) $ageGroup->price,
-                    ];
-                })
-                ->filter()
-                ->values();
-        }
+        $quantity = !empty($selectedSeats)
+            ? count($selectedSeats)
+            : max(1, (int) ($request->quantity ?? 1));
+        $ageGroupItems = $this->resolveAgeGroupItems($ticketType, $request, $selectedSeats);
 
         if ($ticketType->enable_age_group && $ageGroupItems->isNotEmpty()) {
             $quantity = $ageGroupItems->sum('quantity');
-            $subtotal = $ageGroupItems->sum(fn ($item) => $item['price'] * $item['quantity']);
+            if ($quantity > 20) {
+                throw new \RuntimeException('Maximum 20 tickets are allowed per booking.');
+            }
+            $subtotal = $ageGroupItems->sum('total');
         } else {
+            if ($quantity > 20) {
+                throw new \RuntimeException('Maximum 20 tickets are allowed per booking.');
+            }
             $subtotal = $ticketType->ticket_price * $quantity;
+        }
+
+        if (empty($selectedSeats)) {
+            $availableTickets = $this->availableTicketQuantity($ticketType);
+            if ($quantity > $availableTickets) {
+                throw new \RuntimeException("Only {$availableTickets} tickets remaining.");
+            }
         }
 
         $currency = Currency::symbolForEvent($event);
@@ -358,9 +509,9 @@ class TicketCounterApiController extends Controller
                         'name' => $service->name,
                         'quantity' => $quantity,
                         'price' => (float) $service->price,
-                        'total' => $quantity * (float) $service->price,
-                    ];
-                })
+                    'total' => round($quantity * (float) $service->price, 2),
+                ];
+            })
                 ->filter()
                 ->values();
         }
@@ -389,7 +540,7 @@ class TicketCounterApiController extends Controller
 
         $final_amount = $taxableBasis + $taxAmount + $extraChargeAmount;
 
-        return response()->json([
+        return [
             'ticket_title' => $ticketType->title,
             'ticket_price' => $currency . number_format($ticketType->ticket_price, 2),
             'quantity' => $quantity,
@@ -398,7 +549,7 @@ class TicketCounterApiController extends Controller
                 'label' => $item['label'],
                 'quantity' => $item['quantity'],
                 'price' => $currency . number_format($item['price'], 2),
-                'total' => $currency . number_format($item['price'] * $item['quantity'], 2),
+                'total' => $currency . number_format($item['total'], 2),
             ])->all(),
             'service_items' => $serviceItems->map(fn ($item) => [
                 'name' => $item['name'],
@@ -432,8 +583,13 @@ class TicketCounterApiController extends Controller
             'extra_charges_amount' => $currency . number_format($extraChargeAmount, 2),
 
             'total_amount' => $currency . number_format($final_amount, 2),
-            'raw_total' => $final_amount
-        ]);
+            'raw_total' => round($final_amount, 2),
+            'raw_quantity' => $quantity,
+            'raw_subtotal' => round($subtotal, 2),
+            'raw_discount_amount' => round($discountAmount, 2),
+            'raw_age_group_items' => $ageGroupItems->all(),
+            'raw_service_items' => $serviceItems->all(),
+        ];
     }
 
     public function calculateBillOld(Request $request)
@@ -549,7 +705,7 @@ public function store(Request $request)
 
     $request->validate([
         'ticket_type_id' => 'required|exists:ticket_types,id',
-        'quantity'       => 'required|integer|min:1',
+        'quantity'       => 'required|integer|min:1|max:20',
         'name'           => 'required|string|max:255',
         'email'          => 'required|email|max:255',
         'phone_prefix'   => 'required|string|max:20',
@@ -559,6 +715,12 @@ public function store(Request $request)
         'selected_seats' => 'nullable|array',
         'parking_slots'  => 'nullable',
         'car_details'    => 'nullable|array',
+        'service_items'  => 'nullable|array',
+        'service_items.*.id' => 'nullable|integer',
+        'service_items.*.quantity' => 'nullable|integer|min:0',
+        'age_group_items' => 'nullable|array',
+        'age_group_items.*.id' => 'nullable|integer',
+        'age_group_items.*.quantity' => 'nullable|integer|min:0',
         'contestent_id'  => [
             'nullable',
             'integer',
@@ -613,28 +775,22 @@ public function store(Request $request)
         try {
             // Handle transaction exactly like the Web/Stripe controller
             $booking = DB::transaction(function () use ($request, $eventId, $selectedSeats) {
-                
-                $billResponse = $this->calculateBill($request);
-                $billData = $billResponse->getData(true);
+                $billData = $this->buildBillData($request);
                 $couponApplied = $billData['coupon_applied'] && !$billData['bulk_discount_applied'];
-
-            // --- DATA CLEANING STEP ---
-            // Strip any currency symbols and commas before decimal casting.
-            $cleanTotal = preg_replace('/[^0-9.]/', '', $billData['total_amount']);
-            $cleanCoupon = preg_replace('/[^0-9.]/', '', $billData['coupon_amount'] ?? 0);
+                $resolvedQuantity = (int) ($billData['raw_quantity'] ?? $request->quantity);
 
             // 2. Create the Booking Record
             $newBooking = TicketCounter::create([
                 'event_id'              => $eventId,
                 'ticket_type_id'        => $request->ticket_type_id,
-                'qty'                   => $request->quantity,
+                'qty'                   => $resolvedQuantity,
                 'selected_seats'        => !empty($selectedSeats) ? json_encode($selectedSeats) : null,
                 'bulk_discount_applied' => $billData['bulk_discount_applied'],
                 'coupon_applied'        => $couponApplied,
                 'coupon_code'           => $couponApplied ? $billData['coupon_code'] : null,
-                'coupon_amount'         => $couponApplied ? (float)$cleanCoupon : 0,
+                'coupon_amount'         => $couponApplied ? (float) ($billData['raw_discount_amount'] ?? 0) : 0,
                 'coupon_percentage'     => $couponApplied ? (float)($billData['coupon_percentage'] ?? 0) : 0,
-                'total_amount'          => (float)$cleanTotal, 
+                'total_amount'          => (float) ($billData['raw_total'] ?? $this->parseMoney($billData['total_amount'] ?? 0)),
                 'name'                  => $request->name,
                 'email'                 => $request->email,
                 'phone_prefix'          => $request->phone_prefix,
@@ -650,6 +806,8 @@ public function store(Request $request)
 
                 $newBooking->refresh();
                 $bId = $newBooking->booking_id;
+                $ageGroupRows = $this->createBookingAgeGroups($newBooking, $billData['raw_age_group_items'] ?? []);
+                $ticketAgeGroupAssignments = $this->expandAgeGroupTicketAssignments($ageGroupRows);
 
                 if ($request->filled('contestent_id')) {
                     $vote = EventContestentVote::firstOrCreate(
@@ -673,20 +831,43 @@ public function store(Request $request)
                 }
 
                 // 3. Generate Individual Tickets
-                for ($i = 0; $i < $request->quantity; $i++) {
+                for ($i = 0; $i < $resolvedQuantity; $i++) {
                     $seatId = $selectedSeats[$i] ?? null;
                     $ticketNumber = $seatId 
                         ? $bId . "-S" . $seatId . "-" . strtoupper(Str::random(4))
                         : $bId . "-T" . ($i + 1) . "-" . strtoupper(Str::random(4));
+                    $ageGroupAssignment = $ticketAgeGroupAssignments[$i] ?? [];
 
                     DB::table('booked_tickets')->insertOrIgnore([
                         'ticket_counter_id' => $newBooking->id,
                         'booking_id'        => $bId,
                         'ticket_number'     => $ticketNumber,
                         'venue_layout_id'   => $seatId,
+                        'ticket_counter_age_group_id' => $ageGroupAssignment['ticket_counter_age_group_id'] ?? null,
+                        'ticket_type_age_group_id' => $ageGroupAssignment['ticket_type_age_group_id'] ?? null,
+                        'sub_type_label' => $ageGroupAssignment['sub_type_label'] ?? null,
                         'status'            => 'Not Scanned',
                         'created_at'        => now(),
                         'updated_at'        => now(),
+                    ]);
+                }
+
+                foreach (($billData['raw_service_items'] ?? []) as $serviceItem) {
+                    $serviceQuantity = max(0, (int) ($serviceItem['quantity'] ?? 0));
+
+                    if ($serviceQuantity <= 0) {
+                        continue;
+                    }
+
+                    TicketCounterService::create([
+                        'ticket_counter_id' => $newBooking->id,
+                        'event_id' => $eventId,
+                        'event_service_id' => $serviceItem['id'] ?? null,
+                        'service_name' => $serviceItem['name'] ?? 'Event Service',
+                        'quantity' => $serviceQuantity,
+                        'price' => (float) ($serviceItem['price'] ?? 0),
+                        'total_amount' => (float) ($serviceItem['total'] ?? ($serviceQuantity * (float) ($serviceItem['price'] ?? 0))),
+                        'service_code' => 'SV-' . strtoupper(Str::random(10)),
                     ]);
                 }
 
@@ -745,6 +926,12 @@ public function store(Request $request)
                 'booking_id' => $booking->booking_id,
             ]);
 
+        } catch (\RuntimeException $e) {
+            \Log::warning('API Store validation error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         } catch (\Exception $e) {
             \Log::error('API Store Error: ' . $e->getMessage());
             return response()->json([
@@ -759,52 +946,15 @@ public function store(Request $request)
     */
     protected function sendTicketEmail($booking) 
     {
-        $booking->load('parkings');
-        $event = Event::with('support')->find($booking->event_id);
-        $ticketType = TicketType::find($booking->ticket_type_id);
-
-        $ticketDirectory = "tickets/{$booking->booking_id}";
-        if (!Storage::disk('public')->exists($ticketDirectory)) {
-            Storage::disk('public')->makeDirectory($ticketDirectory);
+        if ($booking->ticket_email_sent_at) {
+            return;
         }
 
-        // 1. Generate Main Ticket PDF (Multi-section based on qty)
-        $ticketFileName = "Tickets_{$booking->booking_id}.pdf";
-        $ticketPath = "{$ticketDirectory}/{$ticketFileName}";
-        $ticketPdf = Pdf::loadView('website.events.event-ticket-pdf', [
-            'booking'    => $booking,
-            'event'      => $event,
-            'ticketType' => $ticketType,
-        ])->setPaper('a4')->output();
-        Storage::disk('public')->put($ticketPath, $ticketPdf);
+        app(TicketPdfService::class)->sendTicketEmail($booking);
 
-        // 2. Generate Combined Parking PDF (One file, multiple sections)
-        $parkingFinalPath = null;
-        if ($booking->parkings->count() > 0) {
-            $parkingFileName = "Parking_Passes_{$booking->booking_id}.pdf";
-            $parkingRelPath = "{$ticketDirectory}/{$parkingFileName}";
-            
-            $parkingPdf = Pdf::loadView('website.events.event-parking-pdf', [
-                'booking'    => $booking,
-                'event'      => $event,
-                'ticketType' => $ticketType,
-                'parkings'   => $booking->parkings
-            ])->setPaper('a4')->output();
-
-            Storage::disk('public')->put($parkingRelPath, $parkingPdf);
-            $parkingFinalPath = storage_path("app/public/{$parkingRelPath}");
-        }
-
-        $finalTicketPath = storage_path("app/public/{$ticketPath}");
-
-        // 3. Send Email (Pass parking path as a string or null, not an array)
-        Mail::to($booking->email)->send(new EventTicketMail(
-            $booking, 
-            $event, 
-            $ticketType, 
-            $finalTicketPath, 
-            $parkingFinalPath
-        ));
+        $booking->forceFill([
+            'ticket_email_sent_at' => now(),
+        ])->save();
     }
 
 

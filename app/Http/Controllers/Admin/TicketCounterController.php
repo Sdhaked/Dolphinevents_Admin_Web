@@ -45,7 +45,7 @@ class TicketCounterController extends Controller
                 }
         }])->findOrFail($eventId);
 
-        $ticketTypes = TicketType::where('event_id', $eventId)->get();
+        $ticketTypes = TicketType::with('ageGroups')->where('event_id', $eventId)->get();
         $countries = Country::orderBy('name')->get(['id', 'name']);
         $contestents = $event->enable_voting
             ? EventContestent::where('event_id', $eventId)->orderBy('name')->get()
@@ -360,7 +360,7 @@ class TicketCounterController extends Controller
                 // Check if coupon is valid for this ticket type
                 // ticket_type_ids is cast as array in the model
                 $allowedTicketTypes = $coupon->ticket_type_ids;
-                $isValidForTicketType = empty($allowedTicketTypes) || in_array($ticketTypeId, $allowedTicketTypes) || in_array((string)$ticketTypeId, $allowedTicketTypes);
+                $isValidForTicketType = empty($allowedTicketTypes) || in_array($ticket_type_id, $allowedTicketTypes) || in_array((string)$ticket_type_id, $allowedTicketTypes);
 
                 if ($isValidForTicketType) {
                     $couponDiscountAmount = ($subtotal * $coupon->discount) / 100;

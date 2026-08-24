@@ -3,7 +3,7 @@
 @section('head')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('website._partials.head.meta-data', ['metaData' => $event?->meta_data, 'fallbackTitle' => 'Event Venue layout'])
-    
+
     <!-- #=======> Head Files -->
     @include('website._partials.head.head-files')
 
@@ -167,7 +167,7 @@
                 <div class="head-box">
                     <!-- Headings -->
                     <div>
-                        <h1 class="hd-prim" data-aos="fade-in">Checkout Time</h1>
+                        <h1 class="hd-big" data-aos="fade-in">Checkout Time</h1>
                     </div>
 
                     <!-- Venue Layout Modal Trigger btn-->
@@ -329,7 +329,7 @@
                                     </div>
 
                                     <div style="flex-grow:1">
-                                        <input type="tel" name="phone" class="form-control" id="ph" 
+                                        <input type="tel" name="phone" class="form-control" id="ph"
                                             placeholder="Enter your Phone No." required inputmode="numeric" pattern="[0-9]{5,12}" minlength="5" maxlength="12" autocomplete="tel">
                                         <div class="invalid-feedback" data-feedback-for="ph"></div>
                                     </div>
@@ -349,7 +349,7 @@
                                     </div>
                                     <div class="invalid-feedback" data-feedback-for="countryId"></div>
                                 </div>
-    
+
                                 <div data-aos="fade-up">
                                     <label for="stateId">County *</label>
                                     <div class="select-box">
@@ -361,7 +361,7 @@
                                     <div class="invalid-feedback" data-feedback-for="stateId"></div>
                                 </div>
                             </div>
-                            
+
                         </form>
                     </div>
 
@@ -440,11 +440,11 @@
                         <i class="fa-regular fa-circle-xmark"></i>
                     </button>
                 </div>
-        
+
                 <!-- Body -->
                 <div class="module-body">
                     <p class="mb-0 text-center" >Are you sure you want to remove this seat from your booking?</p>
-                    
+
                         <div class="modal-footer flex-center">
                             <button type="button" class="btn-sm btn-lite hover-lite-outline btn-close">Cancel</button>
                             <button type="button" class="btn-sm btn-prim hover-prim-outline btn-close"         id="confirmRemoveCheckoutSeatBtn">Remove</button>
@@ -465,7 +465,7 @@
                         <i class="fa-regular fa-circle-xmark"></i>
                     </button>
                 </div>
-        
+
                 <!-- Body -->
                 <div class="module-body">
                     <p class="mb-0 text-center" id="checkoutAlertMessage">Something went wrong!! Please try again.</p>
@@ -475,12 +475,12 @@
                 </div>
             </div>
         </div>
-    
+
 
     <!-- ####### FOOTER ####### -->
 
  @include('website._partials.Footer')
- 
+
 {{-- Stripe checkout script start --}}
 <script>
     window.CHECKOUT_TOKEN = "{{ $checkout['token'] }}";
@@ -867,7 +867,7 @@ confirmRemoveCheckoutSeatBtn.addEventListener('click', function() {
             // 4. Trigger Bill Recalculation
             // This calls the API, which returns the new totals and triggers renderBill()
             if (typeof calculateBill === "function") {
-                calculateBill(); 
+                calculateBill();
             }
         } else {
             showCheckoutAlert(data.message || "Error removing seat.", 'Remove Seat');
@@ -887,11 +887,11 @@ confirmRemoveCheckoutSeatBtn.addEventListener('click', function() {
 
 function updateSeatsSectionUI() {
     // Target the tag-box in the left form column
-    const leftTags = document.querySelector('.selected-seats'); 
+    const leftTags = document.querySelector('.selected-seats');
     if (!leftTags) return;
 
     if (window.checkoutSeats.length > 0) {
-        leftTags.innerHTML = window.checkoutSeats.map(seat => 
+        leftTags.innerHTML = window.checkoutSeats.map(seat =>
             `<div class="tag">${seat.label}</div>`
         ).join('');
     }
@@ -914,12 +914,12 @@ function startCheckout() {
     document.querySelectorAll(".car-slot-container input").forEach(input => {
         if (input.value.trim() !== "") carNumbers.push(input.value.trim());
     });
-    
+
     //Get parking slots
     const activeSlotsCount = document.querySelectorAll('.car-slot-container .car-slot-item').length;
 
     const couponCode = appliedCoupon ? appliedCoupon.coupon_code : null;
-    
+
     const payload = {
         token: window.CHECKOUT_TOKEN,
         name: document.getElementById('name').value.trim(),
@@ -927,7 +927,7 @@ function startCheckout() {
         phone: document.getElementById('ph').value.trim(),
         country_id: document.getElementById('countryId').value,
         state_id: document.getElementById('stateId').value,
-        quantity: qty,         
+        quantity: qty,
         coupon_code: couponCode,
         parking_slots: activeSlotsCount || 0,
         car_details: carNumbers,
@@ -1283,7 +1283,7 @@ function calculateBill() {
         service_items: collectServiceItems(),
         age_group_items: collectAgeGroupItems()
     };
-    
+
     fetchWithCheckoutCsrf(`${API_BASE}/calculate-bill`, {
         method: 'POST',
         headers: jsonHeaders(),
@@ -1392,7 +1392,7 @@ function renderBill(d) {
     // Check if the current hold has selected seats (Seating Event Type 2)
     const isSeatingEvent = window.checkoutSeats.length > 0;
     const hasAgeGroupItems = Array.isArray(d.age_group_items) && d.age_group_items.length > 0;
-    
+
     let billingHtml = '';
 
     if (hasAgeGroupItems) {
@@ -1436,7 +1436,7 @@ function renderBill(d) {
             </tr>
             <tr>
                 <th>
-                    <p>${d.ticket_price}/- 
+                    <p>${d.ticket_price}/-
                        <i class="fa-solid fa-xmark i-mr i-ml"></i> ${d.quantity} Tickets
                     </p>
                 </th>
@@ -1449,7 +1449,7 @@ function renderBill(d) {
             <tr>
                 <th>
                     <h6 style="color: {{ $ticketType->ticket_type_color ?? 'orange' }}">${d.ticket_title}</h6>
-                    <p>${d.ticket_price}/- 
+                    <p>${d.ticket_price}/-
                        <i class="fa-solid fa-xmark i-mr i-ml"></i> ${d.quantity} Tickets
                     </p>
                 </th>
@@ -1531,14 +1531,14 @@ initializePhoneField();
     window.hasSelectedSeats = @json(!empty($checkout['selected_seats']));
 </script>
 <script type="module">
-    import { createOfferBar, offerBarFun, debounce } 
+    import { createOfferBar, offerBarFun, debounce }
     from "{{ asset('website/js/offer-bar.js') }}";
 
     function initOfferBar() {
         // --- CONDITION: If selected_seats are present, do not function ---
         if (window.hasSelectedSeats) {
             console.log("Offer Bar disabled for seating-based checkout.");
-            return; 
+            return;
         }
 
         const slabs = window.bulkDiscountSlabs || [];
