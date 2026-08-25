@@ -23,7 +23,7 @@
             <!-- Box 2 -->
             @if ($hasFooterContactInfo)
             <div class="box-2">
-                <h4 class="title">Dolphinevent</h4>
+                <h4 class="title">Dolphin Event</h4>
 
                     <p>We make event ticket sales and bookings simple and seamless. Sell your event tickets, manage bookings, and offer a smooth experience for your attendees. Start today!</p>
 

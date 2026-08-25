@@ -612,16 +612,7 @@ thead tr {
 /* ===> New Entry Color */
 table tr.new {
   background: var(--color-bg-300);
-  box-shadow: inset 4px 0 0 var(--color-primary);
-}
-
-table tr.new > * {
-  background: var(--color-bg-300) !important;
-}
-
-html.dark table tr.new,
-html.dark table tr.new > * {
-  background: rgba(162, 115, 255, 0.16) !important;
+  /* box-shadow: inset 4px 0 0 var(--color-primary); */
 }
 /* ===> New Entry Color end */
 
