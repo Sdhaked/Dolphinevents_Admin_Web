@@ -42,15 +42,15 @@
 
                             <div class="about-crd">
                                 <h6><i class="fa-regular fa-envelope"></i> Email Us</h6>
-                                <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=dolphincreationltd@gmail.com"
+                                <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=dolphincreationsltd@gmail.com"
                                     target="_blank" rel="noopener noreferrer">
-                                    dolphincreationltd@gmail.com
+                                    dolphincreationsltd@gmail.com
                                 </a>
                             </div>
 
                             <div class="about-crd">
                                 <h6><i class="fa-solid fa-location-dot"></i> Located at</h6>
-                                <a href="" target="_blank" rel="noopener noreferrer">
+                                <a href="https://maps.app.goo.gl/ffFghXxXivP3QPZH7" target="_blank" rel="noopener noreferrer">
                                     19 St Philips Close Ratby, Leicester, LE6 0QD
                                 </a>
                             </div>
