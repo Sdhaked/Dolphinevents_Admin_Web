@@ -323,7 +323,7 @@
                      UPCOMING EVENTS SECTION
         ======================================================-->
         @if ($hasUpcomingEvents)
-        <section class="container-fluid spc-y">
+        <section class="container-fluid spc-y-half">
             <div class="container">
                 <div class="side-hd-holder">
                     <div>
@@ -354,11 +354,16 @@
                      PAST EVENTS SECTION
     ======================================================-->
         @if ($hasPastEvents)
-        <section class="container-fluid spc-y">
+        <section class="container-fluid spc-y-half">
             <div class="container">
-                <div class="mb-prim all-text-center">
-                    <h3 class="hd-prim">Past Events</h3>
+                <div class="side-hd-holder">
+                    <div>
+                        <h3 class="hd-prim">Past Events</h3>
+                        <h3 class="hd-big">Our event memories</h3>
+                    </div>
+                    <div></div>
                 </div>
+
                 <div class="grid-archive-4 gap-card" id="homePastEventsGrid">
                     @include('website.home._partials.past-event-items', ['events' => $content->past_events])
                 </div>

@@ -9,13 +9,13 @@
         .ticket { width: 100%; background: #f9f4ee; }
         img { max-width: 100%; }
         p { margin: 0; }
-        .main-hd { font-size: 18px; font-weight: bold; color: #dc2926; margin: 0; padding-right: 20px; }
+        .main-hd { font-size: 18px; font-weight: bold; color: #08255B; margin: 0; padding-right: 20px; }
         .logo { width:150px; }
         .ticket-body { width: 100%; margin-top: 20px; }
         .left { width: 35%; display: inline-block; vertical-align: top; }
         .right { width: 60%; display: inline-block; vertical-align: top; margin-left: 4%; }
         .qr-box { background: #ffffff; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: inline-block; }
-        .event-detail-box { border: 3px dashed #dc2926; padding: 20px; border-radius: 8px; }
+        .event-detail-box { border: 3px dashed #08255B; padding: 20px; border-radius: 8px; }
         .details { margin-bottom: 15px; }
         .details h6 { font-family: "Segoe UI", sans-serif; margin: 0 0 5px; font-size: 14px; font-weight: 500; }
         .details p { font-weight: bold; }
@@ -61,10 +61,10 @@
 
             <table style="width: 100%; margin-bottom: 20px;">
                 <tr>
-                    <td style="text-align: left;">
+                    <td style="text-align: left; vertical-align: bottom;">
                         <span class="main-hd">{{ $event->title }}</span>
                     </td>
-                    <td style="text-align: right; width: 160px;">
+                    <td style="text-align: right; width: 100px;">
                         <img class="logo" src="{{ public_path('website/images/logo.svg') }}">
                     </td>
                 </tr>
@@ -108,7 +108,7 @@
                         </div>
                         <div class="details">
                             <h6>Ticket Type</h6>
-                            <p style="color: #dc2926;">{{ $ticketType->title }}</p>
+                            <p style="color: #08255B;">{{ $ticketType->title }}</p>
                         </div>
                         @if($ticketSubTypeLabel)
                             <div class="details">

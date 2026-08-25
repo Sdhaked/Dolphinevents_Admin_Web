@@ -1228,7 +1228,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid var(--color-border-100);
+    border-top: 1px solid var(--color-border-200);
 }
 .card-footer .price {
     font-size: 0.75rem;

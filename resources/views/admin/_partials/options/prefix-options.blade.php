@@ -1,5 +1,5 @@
 @php
-$selected = $selected ?? '+91';
+$selected = $selected ?? '+44';
 @endphp
 
 <option {{ $selected == '+1' ? 'selected' : '' }} value="+1">+1</option>

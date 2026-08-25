@@ -36,22 +36,22 @@
                             <div class="about-crd">
                                 <h6><i class="fa-solid fa-phone"></i> Call Us</h6>
                                 <a href="" target="_blank" rel="noopener noreferrer">
-                                    (+91) 8544 124 253
+                                    +44 7723122003
                                 </a>
                             </div>
 
                             <div class="about-crd">
                                 <h6><i class="fa-regular fa-envelope"></i> Email Us</h6>
-                                <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=demo@gmail.com"
+                                <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=dolphincreationltd@gmail.com"
                                     target="_blank" rel="noopener noreferrer">
-                                    demo@gmail.com
+                                    dolphincreationltd@gmail.com
                                 </a>
                             </div>
 
                             <div class="about-crd">
                                 <h6><i class="fa-solid fa-location-dot"></i> Located at</h6>
                                 <a href="" target="_blank" rel="noopener noreferrer">
-                                    23 Suspendis matti, Visaosang Building , North American
+                                    19 St Philips Close Ratby, Leicester, LE6 0QD
                                 </a>
                             </div>
                         </div>

@@ -19,12 +19,13 @@
   backdrop-filter: blur(5px);
   z-index: 1;
 }
-.hero-box .hd-prim {
+.hero-box .hd-big {
   color: var(--color-text-toggle);
   font-weight: 500;
   position: relative;
   z-index: 2;
   margin: 0;
+  font-weight: 900;
 }
 
 .hero-box .container {

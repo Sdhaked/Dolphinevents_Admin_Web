@@ -63,7 +63,7 @@
                 <!-- Header -->
                 <div class="head-box">
                     <div>
-                        <h1 class="hd-prim" data-aos="fade-in">Choose Ticket Type</h1>
+                        <h1 class="hd-big" data-aos="fade-in">Choose Ticket Type</h1>
                         <h5 style="color: var(--color-text-300);">Event Name: <span
                                 style="color: var(--my-primary);">{{ $event?->title ?? '' }}</span></h5>
                     </div>

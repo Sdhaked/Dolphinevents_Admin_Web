@@ -135,8 +135,8 @@
 @endsection
 
 @section('body')
-    @php($irelandCountry = $countries->first(fn ($country) => strcasecmp($country->name, 'Ireland') === 0))
-    @php($defaultCountryId = old('country_id', $irelandCountry?->id))
+    @php($selectedCountry = $countries->first(fn ($country) => strcasecmp($country->name, 'United Kingdom') === 0))
+    @php($defaultCountryId = old('country_id', $selectedCountry?->id))
     @php($defaultStateId = old('state_id'))
     <!-- Preloader -->
     @include('website._partials.preloader')
@@ -167,7 +167,7 @@
                 <div class="head-box">
                     <!-- Headings -->
                     <div>
-                        <h1 class="hd-big" data-aos="fade-in">Checkout Time</h1>
+                        <h1 class="hd-big" style="margin: 0;" data-aos="fade-in">Checkout Time</h1>
                     </div>
 
                     <!-- Venue Layout Modal Trigger btn-->
@@ -188,7 +188,7 @@
                 <div class="grid-sec-2 gap-col" data-aos="fade-up">
                     <!-- Form 👩‍🦯-->
                     <div>
-                        <h5 style="color: var(--color-text-300);">Given details will be linked to your ticket and sent to the email address provided below.
+                        <h5 style="color: var(--color-text-300); margin-bottom: 2rem;">Given details will be linked to your ticket and sent to the email address provided below.
                         </h5>
                         <form id="checkoutForm" style="width:100%" class="needs-validation" novalidate="">
                             {{-- Car slots --}}

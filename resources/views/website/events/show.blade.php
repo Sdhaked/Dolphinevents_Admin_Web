@@ -98,7 +98,7 @@
     background-attachment: fixed;
     background-repeat: no-repeat;">
                 <div class="container">
-                    <h1 class="hd-prim" data-aos="fade-up" data-aos-delay="100">{{ $event?->title ?? '' }}</h1>
+                    <h1 class="hd-big" data-aos="fade-up" data-aos-delay="100">{{ $event?->title ?? '' }}</h1>
                 </div>
             </div>
 
