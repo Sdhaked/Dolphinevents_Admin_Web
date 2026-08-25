@@ -112,6 +112,19 @@
                         @csrf
                         <input type="hidden" name="_method" value="POST">
 
+                        <div class="d-flex flex-wrap gap-card">
+                            <button type="button" class="check-btn">
+                                <input class="form-check-input" name="is_mandatory" type="checkbox" value="1"
+                                    id="serviceMandatory" {{ old('is_mandatory') ? 'checked' : '' }}>
+                                <label for="serviceMandatory">Mandatory Purchase</label>
+                            </button>
+                            <button type="button" class="check-btn">
+                                <input class="form-check-input" name="status" type="checkbox" value="1"
+                                    id="serviceStatus" {{ $oldStatusChecked ? 'checked' : '' }}>
+                                <label for="serviceStatus">Active</label>
+                            </button>
+                        </div>
+
                         <div class="form-floating">
                             <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
                                 id="serviceName" value="{{ old('name') }}" maxlength="255" required>
@@ -172,7 +185,7 @@
 
                         <div>
                             <label class="mb-2">Applicable Ticket Types</label>
-                            <div class="grid-2 grid-sm-1 gap-card">
+                            <div class="d-flex flex-wrap" style="gap: 0.5rem">
                                 @foreach ($ticketTypes as $ticketType)
                                     <button type="button" class="check-btn">
                                         <input class="form-check-input service-ticket-type" type="checkbox"
@@ -189,21 +202,10 @@
                             @error('applicable_ticket_type_ids.*')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                            <span class="text-100">Leave all unchecked to make this service available for every ticket type.</span>
+                            <small class="text-100" style="font-size: 0.6rem">Leave all unchecked to make this service available for every ticket type.</small>
                         </div>
 
-                        <div class="d-flex flex-wrap gap-card">
-                            <button type="button" class="check-btn">
-                                <input class="form-check-input" name="is_mandatory" type="checkbox" value="1"
-                                    id="serviceMandatory" {{ old('is_mandatory') ? 'checked' : '' }}>
-                                <label for="serviceMandatory">Mandatory Purchase</label>
-                            </button>
-                            <button type="button" class="check-btn">
-                                <input class="form-check-input" name="status" type="checkbox" value="1"
-                                    id="serviceStatus" {{ $oldStatusChecked ? 'checked' : '' }}>
-                                <label for="serviceStatus">Active</label>
-                            </button>
-                        </div>
+                        
 
                         <button type="submit" class="btn-md btn-sec">Save</button>
                     </form>

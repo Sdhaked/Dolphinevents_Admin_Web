@@ -219,7 +219,7 @@
 
                             @if ($event?->venue_layout_image)
                                 <!-- Vanue Image -->
-                                <details class="Accordion aos-init aos-animate" name="faq" data-aos="fade-up">
+                                <details class="Accordion aos-init aos-animate" name="faq" data-aos="fade-up" open>
                                     <summary>
                                         <p class="title">Venue Layout</p>
                                         <i class="fa-solid fa-plus icon"></i>
