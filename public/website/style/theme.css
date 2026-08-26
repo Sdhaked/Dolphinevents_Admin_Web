@@ -286,6 +286,13 @@ select {
   color: var(--color-text-200);
   outline: transparent;
 }
+input.sm,
+textarea.sm,
+select.sm {
+  font-size: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sec);
+}
 
 input[type="checkbox"],
 input[type="radio"] {
@@ -599,6 +606,10 @@ select::placeholder {
   display: grid;
   grid-template-columns: 0.45fr 1fr;
 }
+.grid-sec-60-40 {
+  display: grid;
+  grid-template-columns: 1fr 0.5fr;
+}
 .grid-archive-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -645,6 +656,9 @@ select::placeholder {
 }
 @media (max-width: 768px) {
   .grid-sec-40-60 {
+    grid-template-columns: repeat(1, 1fr);
+  }
+  .grid-sec-60-40 {
     grid-template-columns: repeat(1, 1fr);
   }
 
