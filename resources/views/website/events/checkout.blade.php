@@ -103,32 +103,8 @@
             }
         }
 
-        .age-group-checkout-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-        }
 
-        .age-group-checkout-meta {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        @media (max-width: 576px) {
-            .age-group-checkout-row {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .age-group-checkout-meta {
-                justify-content: flex-start;
-                width: 100%;
-            }
-        }
+       
     </style>
 
 
@@ -157,26 +133,29 @@
         ======================================================-->
         <section class="container-fluid spc-y-half main-sec">
             <div class="container">
-                <!-- Back Box -->
-                <div class="back-box">
-                    <button class="btm-md btn-link" onclick="history.back()"> <i
-                            class="fa-solid fa-arrow-left-long i-mr"></i>Back</button>
-                </div>
-
                 <!-- Header -->
-                <div class="head-box">
+                <div class="head-box" style="margin: 0;">
                     <!-- Headings -->
                     <div>
-                        <h1 class="hd-big" style="margin: 0;" data-aos="fade-in">Checkout Time</h1>
-                    </div>
+                        <h1 class="hd-big" data-aos="fade-in">Checkout</h1>
 
+                        <!-- Back Box -->
+                        <div class="back-box">
+                            <button class="btm-md btn-link" onclick="history.back()">
+                                <i class="fa-solid fa-arrow-left-long i-mr"></i> Back
+                            </button>
+                        </div>
+                    </div>
+        
                     <!-- Venue Layout Modal Trigger btn-->
                     <div>
                         <button onclick="showElement(`#venue-layout-pop`)" class="btn-md btn-lite-outline hover-lite">
-                            <i class="fa-solid fa-layer-group i-mr"></i> Venue Layout
+                                    <i class="fa-solid fa-layer-group i-mr"></i> Venue Layout
                         </button>
                     </div>
                 </div>
+
+                
 
                 <!-- Offer Bar -->
                 <div class="offer-comp"></div>
@@ -185,12 +164,69 @@
 
 
                 <!-- MAIN CONTENT -->
-                <div class="grid-sec-2 gap-col" data-aos="fade-up">
-                    <!-- Form 👩‍🦯-->
+                <div class="grid-sec-60-40 gap-card" data-aos="fade-up">
+                    <!-- Col 1 👩‍🦯-->
                     <div>
-                        <h5 style="color: var(--color-text-300); margin-bottom: 2rem;">Given details will be linked to your ticket and sent to the email address provided below.
-                        </h5>
                         <form id="checkoutForm" style="width:100%" class="needs-validation" novalidate="">
+                            <!-- Tickets -->
+                            <div class="head-box-mini">
+                                <h1 class="hd-sub">Select Tickets</h1>
+                                <p>Choose the tiers that best fit your experience.</p>
+                            </div>
+
+                            <div data-aos="fade-up" class="tickets-box">
+                            @if(!empty($checkout['selected_seats']))
+                                {{-- <label>Your Selected Seats</label>
+                                <div class="tag-box mt-2">
+                                    @foreach($checkout['selected_seats'] as $label)
+                                        <div class="tag">{{ $label }}</div>
+                                    @endforeach
+                                </div> --}}
+                                {{-- Hidden input to keep JS logic for billing working --}}
+                                <input type="hidden" id="quantity" value="{{ $checkout['quantity'] }}">
+                            @elseif(!empty($ageGroups) && $ageGroups->count())
+                                <input type="hidden" id="quantity" value="{{ $checkout['quantity'] }}">
+                                <h6 class="hd-prim" style="text-transform: uppercase; color:  var(--my-primary);">Sub Tickets</h6>
+                                <div class="grid-1 gap-card">
+                                    @foreach($ageGroups as $ageGroup)
+                                        <div class="sub-ticket">
+                                            <div>
+                                                <h6 class="ticket-name">
+                                                    {{ $ageGroup->label }}
+                                                    @if($ageGroup->is_compulsory)
+                                                        <span class="ticket-mendatory">Mandatory</span>
+                                                    @endif
+                                                </h6>
+                                                <p class="ticket-price">{{ $event->currency_symbol }}{{number_format((float) $ageGroup->price, 2) }}/- </p>
+                                                
+                                            </div>
+                                            <div class="select-box" style="min-width: 5rem;">
+                                                <i class="fa-solid fa-angle-down arrow-i"></i>
+                                                <select class="age-group-qty sm" data-id="{{ $ageGroup->id }}"
+                                                        data-label="{{ $ageGroup->label }}" data-compulsory="{{$ageGroup->is_compulsory ? 1 : 0 }}">
+                                                        @for($i = $ageGroup->is_compulsory ? 1 : 0; $i <= min((int)$ageGroup->max_quantity_per_booking, 20); $i++)
+                                                            <option value="{{ $i }}">Qty {{ $i }}</option>
+                                                        @endfor
+                                                </select>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div class="invalid-feedback" data-feedback-for="quantity"></div>
+                            @else
+                                <h6 class="hd-prim" style="text-transform: uppercase; color:  var(--my-primary);">Tickets</h6>
+
+                                <label for="qty">Ticket Qty *</label>
+                                <div class="select-box">
+                                    <i class="fa-solid fa-angle-down arrow-i"></i>
+                                    <select name="qty" id="quantity" required>
+                                        {{-- Options filled by JS fetchAvailableQuantity --}}
+                                    </select>
+                                </div>
+                                <div class="invalid-feedback" data-feedback-for="quantity"></div>
+                            @endif
+                            </div>
+
                             {{-- Car slots --}}
                             @if($event->enable_car_parking)
                              <div class="car-slot">
@@ -218,150 +254,110 @@
                             </div>
                             @endif
 
-                            <!-- Qty -->
-                            <div data-aos="fade-up">
-                            @if(!empty($checkout['selected_seats']))
-                                {{-- <label>Your Selected Seats</label>
-                                <div class="tag-box mt-2">
-                                    @foreach($checkout['selected_seats'] as $label)
-                                        <div class="tag">{{ $label }}</div>
-                                    @endforeach
-                                </div> --}}
-                                {{-- Hidden input to keep JS logic for billing working --}}
-                                <input type="hidden" id="quantity" value="{{ $checkout['quantity'] }}">
-                            @elseif(!empty($ageGroups) && $ageGroups->count())
-                                <input type="hidden" id="quantity" value="{{ $checkout['quantity'] }}">
-                                <label>Ticket Age Groups *</label>
-                                <div class="grid-1 gap-card">
-                                    @foreach($ageGroups as $ageGroup)
-                                        <div class="style-box">
-                                            <div class="age-group-checkout-row">
-                                                <div>
-                                                    <h6 class="hd-sm mb-1">{{ $ageGroup->label }}</h6>
-                                                </div>
-                                                <div class="age-group-checkout-meta">
-                                                    <p class="mb-0">{{ $event->currency_symbol }}{{ number_format((float) $ageGroup->price, 2) }}/-</p>
-                                                    <div class="select-box" style="min-width: 120px;">
-                                                        <i class="fa-solid fa-angle-down arrow-i"></i>
-                                                        <select class="age-group-qty" data-id="{{ $ageGroup->id }}"
-                                                            data-label="{{ $ageGroup->label }}"
-                                                            data-compulsory="{{ $ageGroup->is_compulsory ? 1 : 0 }}">
-                                                            @for($i = $ageGroup->is_compulsory ? 1 : 0; $i <= min((int) $ageGroup->max_quantity_per_booking, 20); $i++)
-                                                                <option value="{{ $i }}">Qty {{ $i }}</option>
-                                                            @endfor
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                                <div class="invalid-feedback" data-feedback-for="quantity"></div>
-                            @else
-                                <label for="qty">Ticket Qty *</label>
-                                <div class="select-box">
-                                    <i class="fa-solid fa-angle-down arrow-i"></i>
-                                    <select name="qty" id="quantity" required>
-                                        {{-- Options filled by JS fetchAvailableQuantity --}}
-                                    </select>
-                                </div>
-                                <div class="invalid-feedback" data-feedback-for="quantity"></div>
-                            @endif
-                            </div>
-
                             @if(!empty($eventServices) && $eventServices->count())
-                                <div data-aos="fade-up">
-                                    <label>Additional Services</label>
+                            <div>
+                                <div class="head-box-mini">
+                                    <h1 class="hd-sub">Additional Services</h1>
+                                    <p>Enhance your event experience with these premium add-ons.</p>
+                                </div>
+
+                                <div data-aos="fade-up" class="tickets-box">
+                                     <h6 class="hd-prim" style="text-transform: uppercase; color:  var(--my-primary);">Choose Services</h6>
                                     <div class="grid-1 gap-card">
                                         @foreach($eventServices as $service)
-                                            <div class="style-box">
-                                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-card">
+                                                <div class="sub-ticket">
                                                     <div>
-                                                        <h6 class="hd-sm mb-1">{{ $service->name }}</h6>
-                                                        <p class="mb-0">
+                                                        <h6 class="ticket-name">{{ $service->name }}
+                                                              @if($service->is_mandatory)
+                                                              <span class="ticket-mendatory">Mandatory</span>
+                                                             @endif
+                                                        </h6>
+                                                        <p class="ticket-price">
                                                             {{ $event->currency_symbol }}{{ number_format((float) $service->price, 2) }}/-
-                                                            @if($service->is_mandatory)
-                                                                <span class="tag">Mandatory</span>
-                                                            @endif
                                                         </p>
                                                     </div>
-                                                    <div class="select-box" style="min-width: 160px;">
+                                                    <div class="select-box" style="min-width: 5rem;">
                                                         <i class="fa-solid fa-angle-down arrow-i"></i>
-                                                        <select class="event-service-qty" data-id="{{ $service->id }}"
-                                                            data-mandatory="{{ $service->is_mandatory ? 1 : 0 }}">
+                                                        <select class="event-service-qty sm" data-id="{{ $service->id }}" data-mandatory="{{ $service->is_mandatory ? 1 : 0 }}">
                                                             @for($i = $service->is_mandatory ? 1 : 0; $i <= min((int) $service->max_buy_limit, 20); $i++)
                                                                 <option value="{{ $i }}">{{ $i }}</option>
                                                             @endfor
                                                         </select>
                                                     </div>
                                                 </div>
-                                            </div>
                                         @endforeach
                                     </div>
                                 </div>
+                            </div>
                             @endif
 
-                            <!-- Name -->
-                            <div data-aos="fade-up">
-                                <label for="name">Full Name *</label>
-                                <input type="text" class="form-control" id="name" placeholder="Enter your Full Name"
-                                    required>
-                                <div class="invalid-feedback" data-feedback-for="name"></div>
+                        <div>
+                            <div class="head-box-mini">
+                                <h1 class="hd-sub">Attendee Information</h1>
+                                <p>Information will be linked to your digital tickets.</p>
                             </div>
-
-                            <!-- Email -->
-                            <div data-aos="fade-up">
-                                <label for="email">Email *</label>
-                                <input type="email" class="form-control" id="email" placeholder="Enter your Email"
-                                    required>
-                                <div class="invalid-feedback" data-feedback-for="email"></div>
-                            </div>
-
-                            <!-- Phone -->
-                            <div data-aos="fade-up">
-                                <label for="ph">Phone No. *</label>
-                                <div class="flex" style="gap:7px;">
-                                    <div class="select-box" style="max-width:fit-content">
-                                        <i class="fa-solid fa-angle-down arrow-i"></i>
-                                        <select name="phone_prefix">
-                                            @include('website.components.country-codes')
-                                        </select>
-                                    </div>
-
-                                    <div style="flex-grow:1">
-                                        <input type="tel" name="phone" class="form-control" id="ph"
-                                            placeholder="Enter your Phone No." required inputmode="numeric" pattern="[0-9]{5,12}" minlength="5" maxlength="12" autocomplete="tel">
-                                        <div class="invalid-feedback" data-feedback-for="ph"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-g-2">
+                            
+                            <div class="grid-1 gap-form tickets-box">
+                                <!-- Name -->
                                 <div data-aos="fade-up">
-                                    <label for="countryId">Country *</label>
-                                    <div class="select-box">
-                                        <i class="fa-solid fa-angle-down arrow-i"></i>
-                                        <select id="countryId" name="country_id" required>
-                                            <option value="">Select Country</option>
-                                            @foreach ($countries as $country)
-                                                <option value="{{ $country->id }}" @selected((string) $defaultCountryId === (string) $country->id)>{{ $country->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="invalid-feedback" data-feedback-for="countryId"></div>
+                                    <label for="name">Full Name *</label>
+                                    <input type="text" class="form-control" id="name" placeholder="Enter your Full Name"
+                                        required>
                                 </div>
 
+                                <!-- Email -->
                                 <div data-aos="fade-up">
-                                    <label for="stateId">County *</label>
-                                    <div class="select-box">
-                                        <i class="fa-solid fa-angle-down arrow-i"></i>
-                                        <select id="stateId" name="state_id" required disabled data-selected-state="{{ $defaultStateId }}">
-                                            <option value="">Select County</option>
-                                        </select>
+                                    <label for="email">Email *</label>
+                                    <input type="email" class="form-control" id="email" placeholder="Enter your Email"
+                                        required>
+                                </div>
+
+                                <!-- Phone -->
+                                <div data-aos="fade-up">
+                                    <label for="ph">Phone No. *</label>
+                                    <div class="flex" style="gap:7px;">
+                                        <div class="select-box" style="max-width:fit-content">
+                                            <i class="fa-solid fa-angle-down arrow-i"></i>
+                                            <select name="phone_prefix">
+                                                @include('website.components.country-codes')
+                                            </select>
+                                        </div>
+
+                                        <div style="flex-grow:1">
+                                            <input type="tel" name="phone" class="form-control" id="ph"
+                                                placeholder="Enter your Phone No." required inputmode="numeric" pattern="[0-9]{5,12}" minlength="5" maxlength="12" autocomplete="tel">
+                                        </div>
                                     </div>
-                                    <div class="invalid-feedback" data-feedback-for="stateId"></div>
+                                </div>
+
+                                <!-- Country / State -->
+                                <div class="grid-auto gap-card">
+                                    <div>
+                                        <label for="countryId">Country *</label>
+                                        <div class="select-box">
+                                            <i class="fa-solid fa-angle-down arrow-i"></i>
+                                            <select id="countryId" name="country_id" required>
+                                                <option value="">Select Country</option>
+                                                @foreach ($countries as $country)
+                                                    <option value="{{ $country->id }}" @selected((string) $defaultCountryId === (string) $country->id)>{{ $country->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="invalid-feedback" data-feedback-for="countryId"></div>
+                                    </div>
+
+                                    <div>
+                                        <label for="stateId">County * (State)</label>
+                                        <div class="select-box">
+                                            <i class="fa-solid fa-angle-down arrow-i"></i>
+                                            <select id="stateId" name="state_id" required disabled data-selected-state="{{ $defaultStateId }}">
+                                                <option value="">Select County</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-
+                        </div>
                         </form>
                     </div>
 
@@ -1466,7 +1462,7 @@ function renderBill(d) {
             ${d.parking_slots > 0 ? `
             <tr>
                 <th colspan="1">
-                    <h6 style="color: blue">Parking Slot</h6>
+                    <h6 style="color: var(--my-primary)">Parking Slot</h6>
                     <p>${d.parking_price}/- <i class="fa-solid fa-xmark i-mr i-ml"></i> ${d.parking_slots} Slots</p>
                 </th>
                 <td>${d.parking_total}/-</td>
@@ -1474,12 +1470,14 @@ function renderBill(d) {
 
             ${Array.isArray(d.service_items) && d.service_items.length ? `
             <tr>
-                <th colspan="2"><h6 style="color: blue">Additional Services</h6></th>
+                <th colspan="2" style="border: none; padding-bottom: 0;">
+                   <h6 style="color: var(--my-primary)">Additional Services</h6>
+                </th>
             </tr>
             ${d.service_items.map(service => `
                 <tr>
-                    <th>${service.name}<p>${service.price}/- <i class="fa-solid fa-xmark i-mr i-ml"></i> ${service.quantity}</p></th>
-                    <td>${service.total}/-</td>
+                    <th style="border-color: #e5e5e5;">${service.name}<p>${service.price}/- <i class="fa-solid fa-xmark i-mr i-ml"></i> ${service.quantity}</p></th>
+                    <td style="border-color: #e5e5e5;">${service.total}/-</td>
                 </tr>
             `).join('')}` : ''}
 

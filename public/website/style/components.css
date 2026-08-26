@@ -672,7 +672,7 @@
 
 /* Big Heading  */
 .hd-big {
-    --hd-f-size: 2.6rem;
+    --hd-f-size: 2.2rem;
     font-size: var(--hd-f-size);
     line-height: calc(var(--hd-f-size) + 0.2rem);
     margin-bottom: 0.9rem;
@@ -695,12 +695,14 @@
 
 /* Sub Heading */
 .hd-sub {
-    --hd-f-size: 0.875rem;
+    --hd-f-size: 1.4rem;
     font-size: var(--hd-f-size);
     line-height: calc(var(--hd-f-size) + 0.2rem);
     margin-bottom: 1.5rem;
     color: var(--color-text-400);
     text-transform: capitalize;
+    font-family: var(--font-primary);
+    font-weight: 800;
 }
 
 /* Side HD Holder */
@@ -718,6 +720,20 @@
 }
 .side-hd-holder > div:last-child {
     flex-shrink: 0;
+}
+
+/* head-box-mini */
+.head-box-mini{
+    margin-bottom: 0.6rem;
+}
+.head-box-mini > *:first-child{
+    margin-bottom: 0.5rem;
+}
+.head-box-mini > *:last-child{
+    margin-bottom: 0;
+}
+.head-box-mini p{
+    font-size: 0.75rem;
 }
 
 @media (max-width: 1200px) {
