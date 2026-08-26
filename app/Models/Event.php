@@ -162,23 +162,7 @@ class Event extends Model
 
     private function resolveTicketTypeStartingPrice(TicketType $ticketType): ?float
     {
-        $ageGroups = $ticketType->relationLoaded('ageGroups')
-            ? $ticketType->ageGroups
-            : $ticketType->ageGroups()->get();
-
-        if ($ticketType->enable_age_group && $ageGroups->isNotEmpty()) {
-            $lowestAgeGroupPrice = $ageGroups
-                ->pluck('price')
-                ->filter(fn ($price) => is_numeric($price))
-                ->map(fn ($price) => (float) $price)
-                ->min();
-
-            if ($lowestAgeGroupPrice !== null) {
-                return (float) $lowestAgeGroupPrice;
-            }
-        }
-
-        return is_numeric($ticketType->ticket_price) ? (float) $ticketType->ticket_price : null;
+        return $ticketType->starting_price;
     }
 
     public function services(): HasMany

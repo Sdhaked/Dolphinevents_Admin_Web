@@ -15,4 +15,10 @@ class ContactSocialLink extends Model
         'platform',
         'url'
     ];
+
+    public function scopeVisible($query)
+    {
+        return $query->whereNotNull('url')
+            ->where('url', '!=', '');
+    }
 }

@@ -8,6 +8,7 @@ use App\Models\VenueLayout;
 use App\Models\Event;
 use App\Models\DiscountCoupon;
 use App\Models\BulkDiscount;
+use App\Models\TicketCounter;
 use App\Models\TicketTypeAgeGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +21,22 @@ class TicketTypeController extends Controller
     public function __construct()
     {
         $this->perPage = config('constants.pagination.per_page', 10);
+    }
+
+    private function withTicketsSoldSum($query)
+    {
+        return $query->withSum([
+            'ticketCounters as tickets_sold' => fn ($counterQuery) => $counterQuery
+                ->whereIn('booking_status', TicketCounter::countedSoldStatuses()),
+        ], 'qty');
+    }
+
+    private function hasPendingPaymentLock(int $ticketTypeId, int $eventId): bool
+    {
+        return TicketCounter::where('ticket_type_id', $ticketTypeId)
+            ->where('event_id', $eventId)
+            ->where('booking_status', TicketCounter::STATUS_PENDING_PAYMENT)
+            ->exists();
     }
 
     private function validateData(Request $request): array
@@ -93,8 +110,7 @@ class TicketTypeController extends Controller
 
         $event = Event::where('id', $eventId)->first();
 
-        $tickets = TicketType::where('event_id', $eventId)
-            ->withSum('ticketCounters as tickets_sold', 'qty')
+        $tickets = $this->withTicketsSoldSum(TicketType::where('event_id', $eventId))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -244,10 +260,10 @@ class TicketTypeController extends Controller
     {
         $eventId = session('active_event_id');
 
-        $ticket = TicketType::where('id', $id)
-            ->where('event_id', $eventId)
-            ->withSum('ticketCounters as tickets_sold', 'qty')
-            ->first();
+        $ticket = $this->withTicketsSoldSum(
+            TicketType::where('id', $id)
+                ->where('event_id', $eventId)
+        )->first();
 
         if (!$ticket) {
             abort(404);
@@ -448,10 +464,10 @@ class TicketTypeController extends Controller
         $eventId = session('active_event_id');
         
         // Find the ticket strictly within the active event
-        $ticket = TicketType::where('id', $id)
-            ->where('event_id', $eventId)
-            ->withSum('ticketCounters as tickets_sold', 'qty')
-            ->first();
+        $ticket = $this->withTicketsSoldSum(
+            TicketType::where('id', $id)
+                ->where('event_id', $eventId)
+        )->first();
 
         if (!$ticket) {
             return response()->json([
@@ -465,6 +481,13 @@ class TicketTypeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot delete ticket type. Tickets have already been sold for this type.'
+            ], 422);
+        }
+
+        if ($this->hasPendingPaymentLock((int) $ticket->id, (int) $eventId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete ticket type. A checkout is currently pending for this type.'
             ], 422);
         }
 

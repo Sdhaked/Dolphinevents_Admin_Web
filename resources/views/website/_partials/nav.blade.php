@@ -1,3 +1,18 @@
+@php
+    use App\Models\ContactPageContent;
+
+    $navContact = ContactPageContent::find(1);
+    $navPhoneNumber = filled($navContact?->phone_number_1)
+        ? $navContact?->phone_number_1
+        : $navContact?->phone_number_2;
+    $navPhonePrefix = filled($navContact?->phone_number_1)
+        ? $navContact?->phone_prefix_1
+        : $navContact?->phone_prefix_2;
+    $navPhoneLabel = trim(implode(' ', array_filter([$navPhonePrefix, $navPhoneNumber])));
+    $navPhoneHref = preg_replace('/\s+/', '', $navPhoneLabel);
+    $hasNavContactInfo = filled($navPhoneNumber) || filled($navContact?->email) || filled($navContact?->address);
+@endphp
+
 <header>
     <div class="emptyNav"></div>
     <!-- NAV BAR -->
@@ -31,30 +46,38 @@
                             @include('website._partials.nav-menu')
                         </ul>
 
-                        <!-- Nav Contact  -->
-                        <div class="mini-About">
-                            <div class="about-crd">
-                                <h6><i class="fa-solid fa-phone"></i> Call Us</h6>
-                                <a href="" target="_blank" rel="noopener noreferrer">
-                                    +44 7723122003
-                                </a>
-                            </div>
+                        @if ($hasNavContactInfo)
+                            <!-- Nav Contact  -->
+                            <div class="mini-About">
+                                @if (filled($navPhoneNumber))
+                                    <div class="about-crd">
+                                        <h6><i class="fa-solid fa-phone"></i> Call Us</h6>
+                                        <a href="tel:{{ $navPhoneHref }}">
+                                            {{ $navPhoneLabel }}
+                                        </a>
+                                    </div>
+                                @endif
 
-                            <div class="about-crd">
-                                <h6><i class="fa-regular fa-envelope"></i> Email Us</h6>
-                                <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=dolphincreationsltd@gmail.com"
-                                    target="_blank" rel="noopener noreferrer">
-                                    dolphincreationsltd@gmail.com
-                                </a>
-                            </div>
+                                @if (filled($navContact?->email))
+                                    <div class="about-crd">
+                                        <h6><i class="fa-regular fa-envelope"></i> Email Us</h6>
+                                        <a href="mailto:{{ $navContact->email }}">
+                                            {{ $navContact->email }}
+                                        </a>
+                                    </div>
+                                @endif
 
-                            <div class="about-crd">
-                                <h6><i class="fa-solid fa-location-dot"></i> Located at</h6>
-                                <a href="https://maps.app.goo.gl/ffFghXxXivP3QPZH7" target="_blank" rel="noopener noreferrer">
-                                    19 St Philips Close Ratby, Leicester, LE6 0QD
-                                </a>
+                                @if (filled($navContact?->address))
+                                    <div class="about-crd">
+                                        <h6><i class="fa-solid fa-location-dot"></i> Located at</h6>
+                                        <a href="{{ filled($navContact?->map_link) ? $navContact->map_link : route('website.contact.index') }}"
+                                            target="_blank" rel="noopener noreferrer">
+                                            {{ $navContact->address }}
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
-                        </div>
+                        @endif
                     </div>
                 </div>
             </div>

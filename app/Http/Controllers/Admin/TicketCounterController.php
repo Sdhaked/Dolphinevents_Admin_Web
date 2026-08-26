@@ -45,7 +45,9 @@ class TicketCounterController extends Controller
                 }
         }])->findOrFail($eventId);
 
-        $ticketTypes = TicketType::with('ageGroups')->where('event_id', $eventId)->get();
+        $ticketTypes = TicketType::sortByStartingPrice(
+            TicketType::with('ageGroups')->where('event_id', $eventId)->get()
+        );
         $countries = Country::orderBy('name')->get(['id', 'name']);
         $contestents = $event->enable_voting
             ? EventContestent::where('event_id', $eventId)->orderBy('name')->get()

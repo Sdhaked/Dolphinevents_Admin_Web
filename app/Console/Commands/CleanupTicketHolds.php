@@ -19,7 +19,7 @@ class CleanupTicketHolds extends Command
      *
      * @var string
      */
-    protected $description = 'Move expired unpaid checkout holds to failed tickets and delete the holds';
+    protected $description = 'Clean expired checkout holds and remove unpaid abandoned bookings';
 
     /**
      * Execute the console command.
@@ -30,10 +30,11 @@ class CleanupTicketHolds extends Command
         $result = $expiredCheckoutHolds->process($eventId);
 
         $this->info(sprintf(
-            'Converted %d expired checkout hold(s); deleted %d plain expired hold(s); marked %d expired pending verification booking(s) as failed.',
+            'Marked %d paid/problem checkout hold(s) as failed; deleted %d plain expired hold(s); marked %d expired pending verification booking(s) as failed; deleted %d unpaid abandoned booking(s).',
             $result['expired_holds_converted'],
             $result['plain_expired_holds_deleted'],
-            $result['expired_pending_verification']
+            $result['expired_pending_verification'],
+            $result['expired_unpaid_bookings_deleted']
         ));
 
         return self::SUCCESS;

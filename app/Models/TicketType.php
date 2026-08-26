@@ -57,11 +57,7 @@ class TicketType extends Model
     public function getAvailableTicketsAttribute(): int
     {
         $soldCount = \App\Models\TicketCounter::where('ticket_type_id', $this->id)
-            ->whereIn('booking_status', [
-                TicketCounter::STATUS_CONFIRMED,
-                TicketCounter::STATUS_PENDING_VERIFICATION,
-                TicketCounter::STATUS_PENDING_PAYMENT,
-            ])
+            ->whereIn('booking_status', TicketCounter::activeAvailabilityStatuses())
             ->sum('qty');
         return $this->total_tickets - $soldCount;
     }
@@ -76,11 +72,7 @@ class TicketType extends Model
     public function getSoldCountAttribute(): int
     {
         return \App\Models\TicketCounter::where('ticket_type_id', $this->id)
-            ->whereIn('booking_status', [
-                TicketCounter::STATUS_CONFIRMED,
-                TicketCounter::STATUS_PENDING_VERIFICATION,
-                TicketCounter::STATUS_PENDING_PAYMENT,
-            ])
+            ->whereIn('booking_status', TicketCounter::countedSoldStatuses())
             ->sum('qty');
     }
 
@@ -89,6 +81,44 @@ class TicketType extends Model
     {
         if ($this->total_tickets == 0) return 0;
         return ($this->sold_count / $this->total_tickets) * 100;
+    }
+
+    public function getStartingPriceAttribute(): ?float
+    {
+        $ageGroups = $this->relationLoaded('ageGroups')
+            ? $this->ageGroups
+            : $this->ageGroups()->get();
+
+        if ($this->enable_age_group && $ageGroups->isNotEmpty()) {
+            $lowestAgeGroupPrice = $ageGroups
+                ->pluck('price')
+                ->filter(fn ($price) => is_numeric($price))
+                ->map(fn ($price) => (float) $price)
+                ->min();
+
+            if ($lowestAgeGroupPrice !== null) {
+                return (float) $lowestAgeGroupPrice;
+            }
+        }
+
+        return is_numeric($this->ticket_price) ? (float) $this->ticket_price : null;
+    }
+
+    public static function sortByStartingPrice($ticketTypes)
+    {
+        return $ticketTypes
+            ->sort(function (self $first, self $second) {
+                return [
+                    $first->starting_price ?? PHP_FLOAT_MAX,
+                    strtolower((string) $first->title),
+                    (int) $first->id,
+                ] <=> [
+                    $second->starting_price ?? PHP_FLOAT_MAX,
+                    strtolower((string) $second->title),
+                    (int) $second->id,
+                ];
+            })
+            ->values();
     }
 
     //get bulk discounts

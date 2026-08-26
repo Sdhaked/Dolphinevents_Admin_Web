@@ -93,6 +93,7 @@
                 @if ($hasTicketTypes)
                 <div class="ticket-row">
                     @foreach($event->ticketTypes as $ticket)
+                    @php($displayTicketPrice = $ticket->starting_price ?? 0)
                     <div class="ticket-card" data-aos="fade-up">
                         <label for="ticket-{{ $ticket->id }}" class="over-hidden">
 
@@ -114,7 +115,7 @@
 
                                     <p class="ticket-price">
                                         {{ $event->currency_symbol }}
-                                        {{ number_format($ticket->ticket_price, 2) }}/-
+                                        {{ number_format($displayTicketPrice, 2) }}/-
                                         <sub>Per Ticket</sub>
                                     </p>
 

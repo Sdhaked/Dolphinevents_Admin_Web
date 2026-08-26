@@ -14,7 +14,7 @@ class ContactController extends Controller
     public function index() {
         $content = ContactPageContent::where('id', 1)->first();
         if ($content) {
-            $content->social_links = ContactSocialLink::all();
+            $content->social_links = ContactSocialLink::visible()->orderBy('id')->get();
         }
         return view('website.contact.index', compact('content'));
     }

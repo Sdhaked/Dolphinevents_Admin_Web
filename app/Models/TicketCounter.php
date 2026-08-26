@@ -19,6 +19,23 @@ class TicketCounter extends Model
     public const REFUND_NOT_REQUIRED = 'not_required';
     public const REFUND_PENDING = 'pending';
     public const REFUND_REFUNDED = 'refunded';
+
+    public static function countedSoldStatuses(): array
+    {
+        return [
+            self::STATUS_CONFIRMED,
+            self::STATUS_PENDING_VERIFICATION,
+        ];
+    }
+
+    public static function activeAvailabilityStatuses(): array
+    {
+        return [
+            self::STATUS_CONFIRMED,
+            self::STATUS_PENDING_VERIFICATION,
+            self::STATUS_PENDING_PAYMENT,
+        ];
+    }
     
     protected $fillable = [
         'booking_id',

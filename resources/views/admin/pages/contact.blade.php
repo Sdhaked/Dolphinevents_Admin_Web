@@ -185,6 +185,7 @@
                 updateSelectOptions();
             });
             input.addEventListener('input', () => validatePair(select, input));
+            validatePair(select, input);
         });
 
         function validatePair(select, input) {
@@ -192,20 +193,16 @@
             select.classList.remove('border-danger');
             input.classList.remove('border-danger');
 
-            // remove required
-            input.setAttribute('required', false);
-            select.setAttribute('required', false);
+            // Social URL is optional. Only require platform when a URL is typed.
+            input.required = false;
+            select.required = false;
+            input.removeAttribute('required');
+            select.removeAttribute('required');
 
-            // case 1: select has value but input is empty
-            if (select.value && !input.value.trim()) {
-                input.classList.add('border-danger');
-                input.setAttribute('required', true);
-            }
-
-            // case 2: input has value but select is empty
+            // If URL is present, platform is needed to save/create that row.
             if (input.value.trim() && !select.value) {
                 select.classList.add('border-danger');
-                select.setAttribute('required', true);
+                select.required = true;
             }
         }
 
@@ -230,5 +227,7 @@
                 });
             });
         }
+
+        updateSelectOptions();
     </script>
 @endsection

@@ -410,6 +410,7 @@
                                 <!-- Tickets -->
                                 <div class="grid-1 gap-card">
                                     @foreach($event->ticketTypes as $ticket)
+                                    @php($displayTicketPrice = $ticket->starting_price ?? 0)
                                     <!-- Ticket Card -->
                                     <div class="ticket-card {{ $ticket->available_tickets <= 0 ? 'sold-out' : '' }}">
                                         @if($ticket->available_tickets <= 0)
@@ -418,7 +419,7 @@
                                         <h4 class="ticket-name">{{ $ticket->title }}</h4>
                                         <h6 class="ticket-price">
                                             Price:
-                                            <span class="text-prim">{{ $event->currency_symbol }} {{ number_format($ticket->ticket_price, 2) }}</span>
+                                            <span class="text-prim">{{ $event->currency_symbol }} {{ number_format($displayTicketPrice, 2) }}</span>
                                         </h6>
                                         @if($ticket->bulkDiscounts && $ticket->bulkDiscounts->count())
                                             <ul class="check-list list-size-sm i-green">

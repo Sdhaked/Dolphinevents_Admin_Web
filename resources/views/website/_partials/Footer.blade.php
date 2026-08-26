@@ -3,7 +3,7 @@
     use App\Models\ContactSocialLink;
     $contact = ContactPageContent::where('id', 1)->first();
     $hasFooterContactInfo = filled($contact?->address) || filled($contact?->email) || filled($contact?->phone_number_1) || filled($contact?->phone_number_2);
-    $hasFooterSocialLinks = ContactSocialLink::query()->exists();
+    $hasFooterSocialLinks = ContactSocialLink::visible()->exists();
 @endphp
 
 <footer class="container-fluid">

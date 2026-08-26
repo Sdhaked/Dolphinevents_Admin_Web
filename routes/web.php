@@ -34,6 +34,7 @@ use App\Http\Controllers\Website\BaseController;
 use App\Http\Controllers\Website\ContactController as WebsiteContactController;
 use App\Http\Controllers\Website\EventController as WebsiteEventController;
 use App\Http\Controllers\Website\HomeController as WebsiteHomeController;
+use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\SetActiveEvent;
 use Illuminate\Support\Facades\Route;
 
@@ -63,7 +64,7 @@ Route::prefix('admin')->controller(AuthController::class)->middleware('guest')->
 /**
  * Admin Routes
  */
-Route::prefix('admin')->middleware(['auth', SetActiveEvent::class])->group(function () {
+Route::prefix('admin')->middleware(['auth', SetActiveEvent::class, EnsureAdminPermission::class])->group(function () {
     Route::delete('/media/{target}/{id?}', [MediaController::class, 'destroy'])
         ->name('admin.media.destroy');
 

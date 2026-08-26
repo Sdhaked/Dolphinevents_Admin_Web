@@ -110,10 +110,7 @@ class EventController extends Controller
         //                     'ticketTypes',
         //                     'ticketTypes.bulkDiscounts'
         //                 ])->find($id);
-        $event->load([
-                        'ticketTypes',
-                        'ticketTypes.bulkDiscounts'
-                    ]);
+        $this->loadTicketTypesByStartingPrice($event);
 
         if (!$event) {
             abort(404);
@@ -131,10 +128,7 @@ class EventController extends Controller
             return redirect()->route('website.events.event_tickets', $event->slug);
         }
 
-        $event->load([
-                    'ticketTypes',
-                    'ticketTypes.bulkDiscounts'
-                ]);
+        $this->loadTicketTypesByStartingPrice($event);
 
         if ($event?->sell_tickets_till && now()->gt($event->sell_tickets_till)) {
             // If the current time is after the sell_tickets_till time, redirect to the event details page
@@ -152,10 +146,7 @@ class EventController extends Controller
      */
     public function event_tickets(Event $event)
     {
-        $event->load([
-                    'ticketTypes',
-                    'ticketTypes.bulkDiscounts'
-                ]);
+        $this->loadTicketTypesByStartingPrice($event);
 
 
         if ($event?->sell_tickets_till && now()->gt($event->sell_tickets_till)) {
@@ -167,6 +158,20 @@ class EventController extends Controller
         }
 
         return view('website.events.event-tickets', compact('event'));
+    }
+
+    private function loadTicketTypesByStartingPrice(Event $event): void
+    {
+        $event->load([
+            'ticketTypes' => function ($query) {
+                $query->with([
+                    'ageGroups',
+                    'bulkDiscounts' => fn ($q) => $q->orderBy('min_order_qty', 'asc'),
+                ]);
+            },
+        ]);
+
+        $event->setRelation('ticketTypes', TicketType::sortByStartingPrice($event->ticketTypes));
     }
 
     private function eventUsesSeatBooking(Event $event): bool
