@@ -461,6 +461,7 @@
 
                     <div class="mb-prim all-text-center">
                         <h3 class="hd-prim">Our sponsers</h3>
+                        <h3 class="hd-big">Organization Who Support Us</h3>
                     </div>
                     <div class="platform-row">
                         @foreach ($event->sponsors as $sponsor)

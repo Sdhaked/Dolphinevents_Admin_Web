@@ -191,12 +191,11 @@
 }
 .platform-row a {
   max-width: 10rem;
-  padding: 0.8rem;
-  border-radius: var(--radius-prim);
-  /* background: var(--color-bg-400); */
-  border: 1px solid var(--color-border-200);
-  filter: grayscale(100%);
-  transition: var(--transition-linear);
+  /* padding: 0.8rem; */
+  /* border-radius: var(--radius-prim); */
+  /* border: 1px solid var(--color-border-200); */
+  /* filter: grayscale(100%); */
+  transition: var(--transition-ease);
 }
 .platform-row a:hover {
   filter: grayscale(0);
