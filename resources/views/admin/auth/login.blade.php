@@ -42,7 +42,7 @@
                         Resend OTP{{ $resendWaitSeconds > 0 ? ' (' . $resendWaitSeconds . 's)' : '' }}
                     </button>
                 </form>
-                <button type="button" class="btn-link" id="changeEmailToggle">Change Email</button>
+                <button type="button" class="btn-link" id="changeEmailToggle"><i class="fa-solid fa-arrow-left mr-2"></i> Back</button>
             </div>
 
             <form action="{{ route('login.change.email') }}" method="POST"

@@ -164,7 +164,7 @@
 
 
                 <!-- MAIN CONTENT -->
-                <div class="grid-sec-60-40 gap-card" data-aos="fade-up">
+                <div class="grid-sec-60-40 gap-card">
                     <!-- Col 1 👩‍🦯-->
                     <div>
                         <form id="checkoutForm" style="width:100%" class="needs-validation" novalidate="">
@@ -174,7 +174,7 @@
                                 <p>Choose the tiers that best fit your experience.</p>
                             </div>
 
-                            <div data-aos="fade-up" class="tickets-box">
+                            <div class="tickets-box">
                             @if(!empty($checkout['selected_seats']))
                                 {{-- <label>Your Selected Seats</label>
                                 <div class="tag-box mt-2">
@@ -261,7 +261,7 @@
                                     <p>Enhance your event experience with these premium add-ons.</p>
                                 </div>
 
-                                <div data-aos="fade-up" class="tickets-box">
+                                <div class="tickets-box">
                                      <h6 class="hd-prim" style="text-transform: uppercase; color:  var(--my-primary);">Choose Services</h6>
                                     <div class="grid-1 gap-card">
                                         @foreach($eventServices as $service)
@@ -299,21 +299,21 @@
                             
                             <div class="grid-1 gap-form tickets-box">
                                 <!-- Name -->
-                                <div data-aos="fade-up">
+                                <div>
                                     <label for="name">Full Name *</label>
                                     <input type="text" class="form-control" id="name" placeholder="Enter your Full Name"
                                         required>
                                 </div>
 
                                 <!-- Email -->
-                                <div data-aos="fade-up">
+                                <div>
                                     <label for="email">Email *</label>
                                     <input type="email" class="form-control" id="email" placeholder="Enter your Email"
                                         required>
                                 </div>
 
                                 <!-- Phone -->
-                                <div data-aos="fade-up">
+                                <div>
                                     <label for="ph">Phone No. *</label>
                                     <div class="flex" style="gap:7px;">
                                         <div class="select-box" style="max-width:fit-content">
@@ -362,7 +362,7 @@
                     </div>
 
                     <!-- Bill Col 👩‍🦯-->
-                    <div class="bill-col" data-aos="fade-up">
+                    <div class="bill-col">
                         <!-- Coupon Box  -->
                        <!-- Apply Coupon -->
                         <div id="couponApplyBox">
@@ -1451,6 +1451,17 @@ function renderBill(d) {
                 </th>
                 <td>${d.subtotal}/-</td>
             </tr>
+            ${d.bulk_discount_applied ? `
+            <tr style="color: green;">
+                <th>Bulk Discount (${d.bulk_discount_percentage}%)</th>
+                <td>- ${d.bulk_discount_amount}/-</td>
+            </tr>` : ''}
+
+            ${d.coupon_applied ? `
+            <tr style="color: green;">
+                <th>Coupon: ${d.coupon_code} (${d.coupon_percentage}%)</th>
+                <td>- ${d.coupon_amount}/-</td>
+            </tr>` : ''}
         `;
     }
 
