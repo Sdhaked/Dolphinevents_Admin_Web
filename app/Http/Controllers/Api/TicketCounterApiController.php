@@ -524,6 +524,8 @@ class TicketCounterApiController extends Controller
             $parkingTotal = $parkingSlots * $parkingPricePerSlot;
         }
 
+        $orderSubtotal = $subtotal + $serviceTotal + $parkingTotal;
+
         // --- Tax & Extra Charges ---
         $ticketTotalAfterDiscount = max(0, $subtotal - $discountAmount);
         $taxableBasis = $ticketTotalAfterDiscount + $serviceTotal + $parkingTotal;
@@ -545,6 +547,7 @@ class TicketCounterApiController extends Controller
             'ticket_price' => $currency . number_format($ticketType->ticket_price, 2),
             'quantity' => $quantity,
             'subtotal' => $currency . number_format($subtotal, 2),
+            'order_subtotal' => $currency . number_format($orderSubtotal, 2),
             'age_group_items' => $ageGroupItems->map(fn ($item) => [
                 'label' => $item['label'],
                 'quantity' => $item['quantity'],
@@ -586,6 +589,7 @@ class TicketCounterApiController extends Controller
             'raw_total' => round($final_amount, 2),
             'raw_quantity' => $quantity,
             'raw_subtotal' => round($subtotal, 2),
+            'raw_order_subtotal' => round($orderSubtotal, 2),
             'raw_discount_amount' => round($discountAmount, 2),
             'raw_age_group_items' => $ageGroupItems->all(),
             'raw_service_items' => $serviceItems->all(),

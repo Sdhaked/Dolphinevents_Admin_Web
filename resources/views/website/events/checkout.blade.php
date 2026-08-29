@@ -1412,10 +1412,6 @@ function renderBill(d) {
                     <td>${item.total}/-</td>
                 </tr>
             `).join('')}
-            <tr>
-                <th>Ticket Subtotal</th>
-                <td>${d.subtotal}/-</td>
-            </tr>
         `;
     } else if (isSeatingEvent) {
         // --- SEATING EVENT ROWS (First + Second Row) ---
@@ -1482,6 +1478,11 @@ function renderBill(d) {
                     <td>${service.total}/-</td>
                 </tr>
             `).join('')}` : ''}
+
+            <tr>
+                <th>Subtotal</th>
+                <td>${d.order_subtotal ?? d.subtotal}/-</td>
+            </tr>
 
             ${d.bulk_discount_applied ? `
             <tr style="color: green;">
