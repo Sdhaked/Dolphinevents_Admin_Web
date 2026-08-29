@@ -10,6 +10,7 @@ use App\Models\DiscountCoupon;
 use App\Models\Country;
 use App\Models\Booking;
 use App\Models\Event;
+use App\Models\EventService;
 use App\Models\BookedTicket;
 use App\Models\State;
 use App\Models\EventContestent;
@@ -52,6 +53,10 @@ class TicketCounterController extends Controller
         $contestents = $event->enable_voting
             ? EventContestent::where('event_id', $eventId)->orderBy('name')->get()
             : collect();
+        $eventServices = EventService::where('event_id', $eventId)
+            ->where('status', true)
+            ->orderBy('id')
+            ->get();
         
         // Initialize defaults to prevent errors in Simple Booking mode
         $selectedTicketType = null;
@@ -148,6 +153,7 @@ class TicketCounterController extends Controller
             'remainingSlots'        => $remainingSlots,
             'slabs'              => $slabs,
             'contestents'        => $contestents,
+            'eventServices'      => $eventServices,
         ]);
     }
     /**
@@ -220,7 +226,7 @@ class TicketCounterController extends Controller
             ->orderBy('min_order_qty', 'asc')
             ->get();
 
-        if (!$enable_bulk_discount) {
+        if (!$enable_bulk_discount || $bulkDiscounts->isEmpty()) {
             return response()->json(['has_bulk_discount' => false]);
         }
 
@@ -465,6 +471,14 @@ class TicketCounterController extends Controller
             // Calculate bill details
             $billResponse = $this->calculateBill($request);
             $billData = $billResponse->getData(true);
+            $couponApplied = ($billData['coupon_applied'] ?? false) && !($billData['bulk_discount_applied'] ?? false);
+            $hasAppliedDiscount = $couponApplied || ($billData['bulk_discount_applied'] ?? false);
+            $discountAmount = $billData['bulk_discount_applied'] ?? false
+                ? (float) ($billData['bulk_discount_amount'] ?? 0)
+                : (float) ($billData['coupon_amount'] ?? 0);
+            $discountPercentage = $billData['bulk_discount_applied'] ?? false
+                ? (float) ($billData['bulk_discount_percentage'] ?? 0)
+                : (float) ($billData['coupon_percentage'] ?? 0);
 
             // Create ticket counter record
             $ticketCounter = TicketCounter::create([
@@ -472,10 +486,10 @@ class TicketCounterController extends Controller
                 'ticket_type_id' => $request->ticket_type_id,
                 'qty' => $request->quantity,
                 'bulk_discount_applied' => $billData['bulk_discount_applied'],
-                'coupon_applied' => ($billData['coupon_applied'] && !$billData['bulk_discount_applied']) ? $billData['coupon_code'] : null,
-                'coupon_code' => ($billData['coupon_applied'] && !$billData['bulk_discount_applied']) ? $billData['coupon_code'] : null,
-                'coupon_amount' => ($billData['coupon_applied'] && !$billData['bulk_discount_applied']) ? $billData['coupon_amount'] : 0,
-                'coupon_percentage' => ($billData['coupon_applied'] && !$billData['bulk_discount_applied']) ? $billData['coupon_percentage'] : 0,
+                'coupon_applied' => $couponApplied ? $billData['coupon_code'] : null,
+                'coupon_code' => $couponApplied ? $billData['coupon_code'] : null,
+                'coupon_amount' => $hasAppliedDiscount ? $discountAmount : 0,
+                'coupon_percentage' => $hasAppliedDiscount ? $discountPercentage : 0,
                 'total_amount' => $billData['total_amount'],
                 'name' => $request->name,
                 'email' => $request->email,

@@ -158,6 +158,23 @@
                                     </td>
                                 </tr>
                             @endif
+
+                            @if($ticket->services && $ticket->services->count() > 0)
+                                <tr>
+                                    <th>Service Ticket PDF</th>
+                                    <td>
+                                        @if(\Illuminate\Support\Facades\Storage::disk('public')->exists('tickets/' . $ticket->booking_id . '/Service_Passes_' . $ticket->booking_id . '.pdf'))
+                                            <a href="{{ asset('storage/tickets/' . $ticket->booking_id . '/Service_Passes_' . $ticket->booking_id . '.pdf') }}" target="_blank" class="text-prim me-3">
+                                                <i class="fa-solid fa-file-pdf me-1"></i>&nbsp;View&nbsp;PDF
+                                            </a>
+                                        @else
+                                            <span class="text-muted me-3">
+                                                <i class="fa-solid fa-exclamation-triangle me-1"></i>PDF not found
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endif
                             <tr>
                                 <th>Operations</th>
                                 <td>
@@ -335,6 +352,54 @@
                             </tr>
                         @endforelse
 
+                    </tbody>
+                    </table>
+                </div>
+            @endif
+
+            @if($ticket->services && $ticket->services->count() > 0)
+                <div class="style-box mt-4">
+                    <h4 class="hd-sm">Service Tickets</h4>
+                    <table class="table mob-view">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Service Code</th>
+                            <th>Service Name</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($ticket->services as $index => $service)
+                            <tr class="new">
+                                <td>
+                                    <div class="data-label">S.No</div>
+                                    <div>{{ $index + 1 }}.</div>
+                                </td>
+                                <td>
+                                    <div class="data-label">Service Code</div>
+                                    <div>{{ $service->service_code ?? '-' }}</div>
+                                </td>
+                                <td>
+                                    <div class="data-label">Service Name</div>
+                                    <div>{{ $service->service_name ?? '-' }}</div>
+                                </td>
+                                <td>
+                                    <div class="data-label">Qty</div>
+                                    <div>{{ $service->quantity }}</div>
+                                </td>
+                                <td>
+                                    <div class="data-label">Price</div>
+                                    <div>{{ $currency }}{{ number_format((float) $service->price, 2) }}/-</div>
+                                </td>
+                                <td>
+                                    <div class="data-label">Total</div>
+                                    <div>{{ $currency }}{{ number_format((float) $service->total_amount, 2) }}/-</div>
+                                </td>
+                            </tr>
+                        @endforeach
                     </tbody>
                     </table>
                 </div>

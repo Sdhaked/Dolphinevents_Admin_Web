@@ -234,6 +234,8 @@
                             </div>
                             @endif
 
+                            @include('admin.event-ticket._partials.additional-services')
+
                             <button type="submit" class="btn-md btn-sec" id="buyTicketBtn">
                                 <span class="btn-text">Buy Ticket <i class="fa-solid fa-ticket"></i></span>
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
@@ -268,6 +270,23 @@
                                 <td id="parkingDetails">
                                     </td>
                                 <td id="parkingAmount"></td>
+                            </tr>
+                            <tr id="servicesRow" style="display: none;">
+                                <th>
+                                    <div>
+                                        <h6>Additional Services</h6>
+                                        <p id="serviceDetails"></p>
+                                    </div>
+                                </th>
+                                <td id="serviceAmount"></td>
+                            </tr>
+                            <tr id="subtotalRow" style="display: none;">
+                                <th>
+                                    <div>
+                                        <h6>Subtotal</h6>
+                                    </div>
+                                </th>
+                                <td id="subtotalAmount"></td>
                             </tr>
                             <tr id="bulkDiscountRow" style="display: none;">
                                 <th>
@@ -345,6 +364,13 @@ function initializeEventListeners() {
     document.getElementById('applyCouponBtn').addEventListener('click', applyCoupon);
     document.getElementById('removeCouponBtn').addEventListener('click', removeCoupon);
     document.getElementById('ticketForm').addEventListener('submit', handleFormSubmit);
+    document.querySelectorAll('.admin-event-service-qty').forEach((field) => {
+        field.addEventListener('change', () => {
+            if (currentTicketType && resolveTicketQuantity() > 0) {
+                calculateBill();
+            }
+        });
+    });
     initializeMobileNumberField();
 }
 
@@ -485,6 +511,7 @@ function handleTicketTypeChange() {
 
     currentTicketType = select.value;
     lastAvailableTickets = null;
+    syncServiceFields();
 
     document.getElementById('billTicketName').innerText = option.dataset.title;
 
@@ -595,6 +622,44 @@ function collectAgeGroupItems() {
             quantity: Number(select.value || 0),
         }))
         .filter((item) => item.id && item.quantity > 0);
+}
+
+function collectServiceItems() {
+    return Array.from(document.querySelectorAll('.admin-event-service-qty:not(:disabled)'))
+        .map((select) => ({
+            id: Number(select.dataset.id),
+            quantity: Number(select.value || 0),
+        }))
+        .filter((item) => item.id && item.quantity > 0);
+}
+
+function serviceAppliesToCurrentTicket(row) {
+    const ticketTypes = JSON.parse(row.dataset.ticketTypes || '[]');
+    return ticketTypes.length === 0 || ticketTypes.includes(Number(currentTicketType));
+}
+
+function syncServiceFields() {
+    const section = document.getElementById('eventServiceSection');
+    if (!section) return;
+
+    let hasVisibleService = false;
+
+    section.querySelectorAll('.admin-event-service-row').forEach((row) => {
+        const select = row.querySelector('.admin-event-service-qty');
+        const applies = currentTicketType && serviceAppliesToCurrentTicket(row);
+
+        row.style.display = applies ? '' : 'none';
+        if (select) {
+            select.disabled = !applies;
+            if (applies && select.dataset.mandatory === '1' && Number(select.value || 0) <= 0) {
+                select.value = '1';
+            }
+        }
+
+        hasVisibleService = hasVisibleService || Boolean(applies);
+    });
+
+    section.style.display = hasVisibleService ? '' : 'none';
 }
 
 function resolveTicketQuantity() {
@@ -840,6 +905,7 @@ function calculateBill() {
             coupon_code: appliedCoupon?.coupon_code || null,
             parking_slots: activeSlotsCount || 0,
             car_details: carNumbers,
+            service_items: collectServiceItems(),
             age_group_items: collectAgeGroupItems()
         })
     })
@@ -885,12 +951,34 @@ function updateBillDisplay(data) {
         }
     }
 
-     // 3. Bulk Discount Row
+    // 3. Additional Services
+    const servicesRow = document.getElementById('servicesRow');
+    if (servicesRow) {
+        if (Array.isArray(data.service_items) && data.service_items.length) {
+            servicesRow.style.display = 'table-row';
+            document.getElementById('serviceDetails').innerHTML = data.service_items.map(service =>
+                `${service.name}: ${service.price}/- <i class="fa-solid fa-xmark mx-2"></i> ${service.quantity}`
+            ).join('<br>');
+            document.getElementById('serviceAmount').innerHTML = data.service_items.map(service =>
+                `${service.total}/-`
+            ).join('<br>');
+        } else {
+            servicesRow.style.display = 'none';
+        }
+    }
+
+    const subtotalRow = document.getElementById('subtotalRow');
+    if (subtotalRow) {
+        subtotalRow.style.display = 'table-row';
+        document.getElementById('subtotalAmount').textContent = `${data.order_subtotal || data.subtotal}/-`;
+    }
+
+     // 4. Bulk Discount Row
     if (data.bulk_discount_applied) {
         document.getElementById('bulkDiscountRow').style.display = 'table-row';
         document.getElementById('bulkDiscountDetails').textContent = `${data.bulk_discount_percentage}% off`;
         document.getElementById('bulkDiscountAmount').innerHTML =
-            `<span class="text-danger">${data.bulk_discount_amount}/-</span>`;
+            `<span class="text-danger">-${data.bulk_discount_amount}/-</span>`;
     } else {
         document.getElementById('bulkDiscountRow').style.display = 'none';
     }
@@ -1009,6 +1097,11 @@ function handleFormSubmit(e) {
         formData.append(`age_group_items[${index}][id]`, item.id);
         formData.append(`age_group_items[${index}][quantity]`, item.quantity);
     });
+
+    collectServiceItems().forEach((item, index) => {
+        formData.append(`service_items[${index}][id]`, item.id);
+        formData.append(`service_items[${index}][quantity]`, item.quantity);
+    });
     
     //Parking slots
     const activeSlotsCount = document.querySelectorAll('.car-slots-container .car-slot-item').length;
@@ -1086,7 +1179,7 @@ function resetCoupon() {
 }
 
 function resetBill() {
-    ['ticketPriceRow','bulkDiscountRow','couponAppliedRow','extraChargesRow','taxRow','totalAmountRow']
+    ['ticketPriceRow','parkingRow','servicesRow','subtotalRow','bulkDiscountRow','couponAppliedRow','extraChargesRow','taxRow','totalAmountRow']
         .forEach(id => document.getElementById(id).style.display = 'none');
 }
 
@@ -1095,6 +1188,8 @@ function resetAll() {
     resetCoupon();
     hidePromoteMessage();
     resetQuantityOptions();
+    currentTicketType = null;
+    syncServiceFields();
     disableCouponSection();
 }
 

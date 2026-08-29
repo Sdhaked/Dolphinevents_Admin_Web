@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\EventTicketMail;
 use App\Models\BookedTicket;
 use App\Models\Event;
+use App\Models\TicketCounterService;
 use App\Models\TicketType;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
@@ -15,15 +16,20 @@ use Illuminate\Support\Str;
 class TicketPdfService
 {
     /**
-     * Generate ticket + parking PDFs and return paths and metadata.
+     * Generate ticket, parking, and service PDFs and return paths and metadata.
      *
      * @param  mixed  $booking
-     * @return array{event:\App\Models\Event|null,ticketType:\App\Models\TicketType|null,ticketPath:string,parkingPath:?string}
+     * @return array{event:\App\Models\Event|null,ticketType:\App\Models\TicketType|null,ticketPath:string,parkingPath:?string,servicePath:?string}
      */
     public function generatePdfs($booking): array
     {
-        $booking->load(['parkings', 'services', 'ageGroups']);
+        $booking->load([
+            'parkings',
+            'services' => fn ($query) => $query->orderBy('id'),
+            'ageGroups',
+        ]);
         $this->prepareBookedTicketsForPdf($booking);
+        $this->ensureServiceCodes($booking);
 
         $event = Event::with('support')->find($booking->event_id);
         $ticketType = TicketType::find($booking->ticket_type_id);
@@ -60,6 +66,23 @@ class TicketPdfService
             $parkingFinalPath = storage_path("app/public/{$parkingRelPath}");
         }
 
+        // Generate dynamic Service Pass PDF if additional services exist.
+        $serviceFinalPath = null;
+        if ($booking->services && $booking->services->count() > 0) {
+            $serviceFileName = "Service_Passes_{$booking->booking_id}.pdf";
+            $serviceRelPath = "{$ticketDirectory}/{$serviceFileName}";
+
+            $servicePdf = Pdf::loadView('website.events.event-service-pdf', [
+                'booking'    => $booking,
+                'event'      => $event,
+                'ticketType' => $ticketType,
+                'services'   => $booking->services,
+            ])->setPaper('a4')->output();
+
+            Storage::disk('public')->put($serviceRelPath, $servicePdf);
+            $serviceFinalPath = storage_path("app/public/{$serviceRelPath}");
+        }
+
         $finalTicketPath = storage_path("app/public/{$ticketPath}");
 
         return [
@@ -67,7 +90,38 @@ class TicketPdfService
             'ticketType' => $ticketType,
             'ticketPath' => $finalTicketPath,
             'parkingPath' => $parkingFinalPath,
+            'servicePath' => $serviceFinalPath,
         ];
+    }
+
+    private function ensureServiceCodes($booking): void
+    {
+        if (!Schema::hasColumn('ticket_counter_services', 'service_code')) {
+            return;
+        }
+
+        $booking->loadMissing('services');
+
+        foreach ($booking->services as $service) {
+            if (filled($service->service_code)) {
+                continue;
+            }
+
+            $service->forceFill([
+                'service_code' => $this->uniqueServiceCode(),
+            ])->save();
+        }
+
+        $booking->setRelation('services', $booking->services()->orderBy('id')->get());
+    }
+
+    private function uniqueServiceCode(): string
+    {
+        do {
+            $serviceCode = 'SV-' . strtoupper(Str::random(10));
+        } while (TicketCounterService::where('service_code', $serviceCode)->exists());
+
+        return $serviceCode;
     }
 
     private function prepareBookedTicketsForPdf($booking): void
@@ -223,7 +277,8 @@ class TicketPdfService
             $data['event'],
             $data['ticketType'],
             $data['ticketPath'],
-            $data['parkingPath']
+            $data['parkingPath'],
+            $data['servicePath']
         ));
     }
 }

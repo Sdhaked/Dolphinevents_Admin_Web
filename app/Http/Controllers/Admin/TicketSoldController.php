@@ -9,6 +9,7 @@ use App\Models\TicketType;
 use App\Models\User;
 use App\Models\BookedTicket;
 use App\Models\TicketParking;
+use App\Models\TicketCounterService;
 use App\Models\DiscountCoupon;
 use App\Models\Event;
 use App\Services\ExpiredCheckoutHoldService;
@@ -174,6 +175,7 @@ class TicketSoldController extends Controller
         Storage::disk('public')->delete([
             $ticketDirectory . '/Tickets_' . $ticket->booking_id . '.pdf',
             $ticketDirectory . '/Parking_Passes_' . $ticket->booking_id . '.pdf',
+            $ticketDirectory . '/Service_Passes_' . $ticket->booking_id . '.pdf',
         ]);
 
         Storage::disk('public')->deleteDirectory($ticketDirectory);
@@ -183,6 +185,7 @@ class TicketSoldController extends Controller
     {
         BookedTicket::where('ticket_counter_id', $ticket->id)->delete();
         TicketParking::where('ticket_counter_id', $ticket->id)->delete();
+        TicketCounterService::where('ticket_counter_id', $ticket->id)->delete();
     }
 
     private function releaseBookedSeats(TicketCounter $ticket): void
@@ -289,6 +292,7 @@ class TicketSoldController extends Controller
             'bookedTickets',
             'coupon',
             'parkings',
+            'services',
             'country',
             'state',
             'contestentVotes.contestent',
@@ -313,6 +317,7 @@ class TicketSoldController extends Controller
             'creator',
             'coupon',
             'parkings',
+            'services',
             'country',
             'state',
             'paymentTransaction',
@@ -489,7 +494,7 @@ class TicketSoldController extends Controller
     public function regeneratePDF($id)
     {
         try {
-            $booking = TicketCounter::withTrashed()->with(['parkings', 'ticketType', 'event'])->findOrFail($id);
+            $booking = TicketCounter::withTrashed()->with(['parkings', 'services', 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->generatePdfs($booking);
             
             return response()->json([
@@ -511,16 +516,24 @@ class TicketSoldController extends Controller
     public function resendEmail($id)
     {
         try {
-            $booking = TicketCounter::withTrashed()->with(['parkings', 'ticketType', 'event'])->findOrFail($id);
+            $booking = TicketCounter::withTrashed()->with(['parkings', 'services', 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->sendTicketEmail($booking);
             $booking->forceFill(['ticket_email_sent_at' => now()])->save();
             $hasParking = $booking->parkings && $booking->parkings->count() > 0;
+            $hasServices = $booking->services && $booking->services->count() > 0;
+            $pdfTypes = ['ticket'];
+
+            if ($hasParking) {
+                $pdfTypes[] = 'parking';
+            }
+
+            if ($hasServices) {
+                $pdfTypes[] = 'service';
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => $hasParking
-                    ? 'Ticket and parking PDFs regenerated and email sent to ' . $booking->email
-                    : 'Ticket PDF regenerated and email sent to ' . $booking->email
+                'message' => ucfirst(implode(', ', $pdfTypes)) . ' PDF' . (count($pdfTypes) > 1 ? 's' : '') . ' regenerated and email sent to ' . $booking->email
             ]);
             
         } catch (\Exception $e) {
