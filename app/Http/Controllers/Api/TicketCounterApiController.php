@@ -277,7 +277,7 @@ class TicketCounterApiController extends Controller
             ->orderBy('min_order_qty', 'asc')
             ->get();
 
-        if (!$enable_bulk_discount) {
+        if (!$enable_bulk_discount || $bulkDiscounts->isEmpty()) {
             return response()->json(['has_bulk_discount' => false,'disable_coupon' => false]);
         }
 
@@ -484,37 +484,56 @@ class TicketCounterApiController extends Controller
         }
 
         // --- Services ---
-        $serviceItems = collect();
-        if (is_array($request->service_items ?? null)) {
-            $serviceIds = collect($request->service_items)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
-            $services = EventService::where('event_id', $eventId)
-                ->where('status', true)
-                ->whereIn('id', $serviceIds)
-                ->get()
-                ->keyBy('id');
+        $requestedServices = collect($request->service_items ?? [])
+            ->mapWithKeys(fn ($item) => [(int) ($item['id'] ?? 0) => max(0, (int) ($item['quantity'] ?? 0))]);
 
-            $serviceItems = collect($request->service_items)
-                ->map(function ($item) use ($services, $ticket_type_id) {
-                    $service = $services->get((int) ($item['id'] ?? 0));
-                    $quantity = max(0, (int) ($item['quantity'] ?? 0));
+        $serviceItems = EventService::where('event_id', $eventId)
+            ->where('status', true)
+            ->get()
+            ->filter(fn (EventService $service) => $service->isApplicableToTicketType($ticket_type_id))
+            ->map(function (EventService $service) use ($requestedServices) {
+                $quantity = (int) ($requestedServices[$service->id] ?? 0);
 
-                    if (!$service || $quantity <= 0 || !$service->isApplicableToTicketType($ticket_type_id)) {
-                        return null;
+                if ($service->is_mandatory) {
+                    $quantity = max(1, $quantity);
+                }
+
+                if ($quantity <= 0) {
+                    return null;
+                }
+
+                $maxServiceQuantity = max(1, (int) $service->max_buy_limit);
+                if ($quantity > $maxServiceQuantity) {
+                    throw new \RuntimeException("Maximum {$maxServiceQuantity} {$service->name} services are allowed per booking.");
+                }
+
+                if ((int) $service->available_quantity > 0) {
+                    $sold = TicketCounterService::where('event_service_id', $service->id)
+                        ->whereHas('booking', function ($query) {
+                            $query->whereIn('booking_status', [
+                                TicketCounter::STATUS_CONFIRMED,
+                                TicketCounter::STATUS_PENDING_VERIFICATION,
+                                TicketCounter::STATUS_PENDING_PAYMENT,
+                            ]);
+                        })
+                        ->sum('quantity');
+
+                    $available = max(0, (int) $service->available_quantity - (int) $sold);
+                    if ($quantity > $available) {
+                        throw new \RuntimeException("Only {$available} {$service->name} services remaining.");
                     }
+                }
 
-                    $quantity = min($quantity, (int) $service->max_buy_limit);
-
-                    return [
-                        'id' => $service->id,
-                        'name' => $service->name,
-                        'quantity' => $quantity,
-                        'price' => (float) $service->price,
+                return [
+                    'id' => $service->id,
+                    'name' => $service->name,
+                    'quantity' => $quantity,
+                    'price' => (float) $service->price,
                     'total' => round($quantity * (float) $service->price, 2),
                 ];
             })
-                ->filter()
-                ->values();
-        }
+            ->filter()
+            ->values();
 
         $serviceTotal = $serviceItems->sum('total');
 
@@ -523,6 +542,8 @@ class TicketCounterApiController extends Controller
         if($event->enable_car_parking && $parkingSlots > 0) {
             $parkingTotal = $parkingSlots * $parkingPricePerSlot;
         }
+
+        $orderSubtotal = $subtotal + $serviceTotal + $parkingTotal;
 
         // --- Tax & Extra Charges ---
         $ticketTotalAfterDiscount = max(0, $subtotal - $discountAmount);
@@ -545,6 +566,7 @@ class TicketCounterApiController extends Controller
             'ticket_price' => $currency . number_format($ticketType->ticket_price, 2),
             'quantity' => $quantity,
             'subtotal' => $currency . number_format($subtotal, 2),
+            'order_subtotal' => $currency . number_format($orderSubtotal, 2),
             'age_group_items' => $ageGroupItems->map(fn ($item) => [
                 'label' => $item['label'],
                 'quantity' => $item['quantity'],
@@ -586,6 +608,7 @@ class TicketCounterApiController extends Controller
             'raw_total' => round($final_amount, 2),
             'raw_quantity' => $quantity,
             'raw_subtotal' => round($subtotal, 2),
+            'raw_order_subtotal' => round($orderSubtotal, 2),
             'raw_discount_amount' => round($discountAmount, 2),
             'raw_age_group_items' => $ageGroupItems->all(),
             'raw_service_items' => $serviceItems->all(),
@@ -777,6 +800,7 @@ public function store(Request $request)
             $booking = DB::transaction(function () use ($request, $eventId, $selectedSeats) {
                 $billData = $this->buildBillData($request);
                 $couponApplied = $billData['coupon_applied'] && !$billData['bulk_discount_applied'];
+                $hasAppliedDiscount = $couponApplied || $billData['bulk_discount_applied'];
                 $resolvedQuantity = (int) ($billData['raw_quantity'] ?? $request->quantity);
 
             // 2. Create the Booking Record
@@ -788,8 +812,8 @@ public function store(Request $request)
                 'bulk_discount_applied' => $billData['bulk_discount_applied'],
                 'coupon_applied'        => $couponApplied,
                 'coupon_code'           => $couponApplied ? $billData['coupon_code'] : null,
-                'coupon_amount'         => $couponApplied ? (float) ($billData['raw_discount_amount'] ?? 0) : 0,
-                'coupon_percentage'     => $couponApplied ? (float)($billData['coupon_percentage'] ?? 0) : 0,
+                'coupon_amount'         => $hasAppliedDiscount ? (float) ($billData['raw_discount_amount'] ?? 0) : 0,
+                'coupon_percentage'     => $hasAppliedDiscount ? (float)($billData['coupon_percentage'] ?? 0) : 0,
                 'total_amount'          => (float) ($billData['raw_total'] ?? $this->parseMoney($billData['total_amount'] ?? 0)),
                 'name'                  => $request->name,
                 'email'                 => $request->email,
@@ -911,7 +935,7 @@ public function store(Request $request)
             if ($booking) {
                 try {
                     // Ensure relationships are loaded before passing to the mailer
-                    $booking->load(['parkings', 'ticketType', 'event']);
+                    $booking->load(['parkings', 'services', 'ticketType', 'event']);
                     
                     $this->sendTicketEmail($booking); 
                     \Log::info('Mail success for booking: ' . $booking->booking_id);

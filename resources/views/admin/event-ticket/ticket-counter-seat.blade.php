@@ -235,6 +235,8 @@
                             </div>
                             @endif
 
+                            @include('admin.event-ticket._partials.additional-services')
+
                             <button type="submit" class="btn-md btn-sec" id="buyTicketBtn">
                                 <span class="btn-text">Buy Ticket <i class="fa-solid fa-ticket"></i></span>
                                 <span class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display: none;"></span>
@@ -270,6 +272,17 @@
                                 <td id="parkingDetails">
                                     </td>
                                 <td id="parkingAmount"></td>
+                            </tr>
+                            <tr id="servicesRow" style="display: none;">
+                                <th>
+                                    <h6>Additional Services</h6>
+                                    <p id="serviceDetails"></p>
+                                </th>
+                                <td id="serviceAmount"></td>
+                            </tr>
+                            <tr id="subtotalRow" style="display: none;">
+                                <th><h6>Subtotal</h6></th>
+                                <td id="subtotalAmount"></td>
                             </tr>
                             <tr id="bulkDiscountRow" style="display: none;">
                                 <th>
@@ -357,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sync the Bill UI if a ticket type is already active
     if (window.currentTicketType) {
         syncUIWithTicketType();
+        syncServiceFields();
     }
 
     startPolling();
@@ -369,6 +383,13 @@ function initializeEventListeners() {
     document.getElementById('applyCouponBtn')?.addEventListener('click', applyCoupon);
     document.getElementById('removeCouponBtn')?.addEventListener('click', removeCoupon);
     document.getElementById('ticketForm')?.addEventListener('submit', handleFormSubmit);
+    document.querySelectorAll('.admin-event-service-qty').forEach((field) => {
+        field.addEventListener('change', () => {
+            if (window.currentTicketType && window.currentQuantity > 0) {
+                calculateBill();
+            }
+        });
+    });
     initializeMobileNumberField();
 
     // Listen for seat changes in the stadium layout
@@ -490,6 +511,45 @@ function syncUIWithTicketType() {
             document.getElementById('billTicketName').innerText = option.dataset.title;
         }
     }
+    syncServiceFields();
+}
+
+function collectServiceItems() {
+    return Array.from(document.querySelectorAll('.admin-event-service-qty:not(:disabled)'))
+        .map((select) => ({
+            id: Number(select.dataset.id),
+            quantity: Number(select.value || 0),
+        }))
+        .filter((item) => item.id && item.quantity > 0);
+}
+
+function serviceAppliesToCurrentTicket(row) {
+    const ticketTypes = JSON.parse(row.dataset.ticketTypes || '[]');
+    return ticketTypes.length === 0 || ticketTypes.includes(Number(window.currentTicketType));
+}
+
+function syncServiceFields() {
+    const section = document.getElementById('eventServiceSection');
+    if (!section) return;
+
+    let hasVisibleService = false;
+
+    section.querySelectorAll('.admin-event-service-row').forEach((row) => {
+        const select = row.querySelector('.admin-event-service-qty');
+        const applies = window.currentTicketType && serviceAppliesToCurrentTicket(row);
+
+        row.style.display = applies ? '' : 'none';
+        if (select) {
+            select.disabled = !applies;
+            if (applies && select.dataset.mandatory === '1' && Number(select.value || 0) <= 0) {
+                select.value = '1';
+            }
+        }
+
+        hasVisibleService = hasVisibleService || Boolean(applies);
+    });
+
+    section.style.display = hasVisibleService ? '' : 'none';
 }
 
 /* ---------------- SEAT LOGIC ---------------- */
@@ -570,7 +630,8 @@ function calculateBill() {
             quantity: window.currentQuantity,
             coupon_code: window.appliedCoupon?.coupon_code || null,
             parking_slots: activeSlotsCount || 0,
-            car_details: carNumbers
+            car_details: carNumbers,
+            service_items: collectServiceItems()
         })
     })
     .then(r => r.json())
@@ -714,7 +775,29 @@ function updateBillDisplay(data) {
         }
     }
 
-    // 3. Bulk Discount Row
+    // 3. Additional Services
+    const servicesRow = document.getElementById('servicesRow');
+    if (servicesRow) {
+        if (Array.isArray(data.service_items) && data.service_items.length) {
+            servicesRow.style.display = 'table-row';
+            document.getElementById('serviceDetails').innerHTML = data.service_items.map(service =>
+                `${service.name}: ${service.price}/- <i class="fa-solid fa-xmark mx-2"></i> ${service.quantity}`
+            ).join('<br>');
+            document.getElementById('serviceAmount').innerHTML = data.service_items.map(service =>
+                `${service.total}/-`
+            ).join('<br>');
+        } else {
+            servicesRow.style.display = 'none';
+        }
+    }
+
+    const subtotalRow = document.getElementById('subtotalRow');
+    if (subtotalRow) {
+        subtotalRow.style.display = 'table-row';
+        document.getElementById('subtotalAmount').textContent = `${data.order_subtotal || data.subtotal}/-`;
+    }
+
+    // 4. Bulk Discount Row
     const bulkRow = document.getElementById('bulkDiscountRow');
     if (data.bulk_discount_applied) {
         bulkRow.style.display = 'table-row';
@@ -779,7 +862,7 @@ function hidePromoteMessage() {
 }
 
 function resetBill() {
-    ['ticketPriceRow','bulkDiscountRow','couponAppliedRow','extraChargesRow','taxRow','totalAmountRow']
+    ['ticketPriceRow','parkingRow','servicesRow','subtotalRow','bulkDiscountRow','couponAppliedRow','extraChargesRow','taxRow','totalAmountRow']
         .forEach(id => document.getElementById(id).style.display = 'none');
     const tagsRow = document.querySelector('.tags-row');
     if (tagsRow) tagsRow.innerHTML = '';
@@ -876,6 +959,11 @@ function handleFormSubmit(e) {
 
     formData.append('event_id', window.EVENT_ID);
     formData.append('ticket_type_id', window.currentTicketType);
+
+    collectServiceItems().forEach((item, index) => {
+        formData.append(`service_items[${index}][id]`, item.id);
+        formData.append(`service_items[${index}][quantity]`, item.quantity);
+    });
 
     //Parking slots
     const activeSlotsCount = document.querySelectorAll('.car-slots-container .car-slot-item').length;
