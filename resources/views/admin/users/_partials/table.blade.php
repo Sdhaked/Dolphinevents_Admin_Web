@@ -48,7 +48,9 @@
                     <td>
                         <div class="data-label">Action</div>
                         <div class="action-row">
-                            @php($isDeveloperAdmin = $user->roleModel?->slug === 'developer-admin')
+                            @php
+                                $isDeveloperAdmin = $user->roleModel?->slug === 'developer-admin';
+                            @endphp
                             @if($user->trashed())
                                 <form action="{{ route('admin.users.activate', $user->id) }}" method="POST"
                                       onsubmit="return confirm('Are you sure you want to activate this user?');">

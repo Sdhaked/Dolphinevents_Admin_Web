@@ -1,5 +1,7 @@
 <div class="table-responsive mt-4">
-    @php($currency = \App\Models\Currency::symbolForEvent($event ?? null))
+    @php
+        $currency = \App\Models\Currency::symbolForEvent($event ?? null);
+    @endphp
     <table class="table mob-view">
         <thead>
             <tr>

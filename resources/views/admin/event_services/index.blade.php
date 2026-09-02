@@ -50,7 +50,9 @@
                                 <td>{{ $service->max_buy_limit }}</td>
                                 <td>{{ $service->is_mandatory ? 'Yes' : 'No' }}</td>
                                 <td>
-                                    @php($ids = array_map('intval', $service->applicable_ticket_type_ids ?? []))
+                                    @php
+                                        $ids = array_map('intval', $service->applicable_ticket_type_ids ?? []);
+                                    @endphp
                                     @if (empty($ids))
                                         All ticket types
                                     @else
@@ -106,8 +108,10 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    @php($oldTicketTypeIds = array_map('intval', old('applicable_ticket_type_ids', [])))
-                    @php($oldStatusChecked = old('_token') ? old('status') : '1')
+                    @php
+                        $oldTicketTypeIds = array_map('intval', old('applicable_ticket_type_ids', []));
+                        $oldStatusChecked = old('_token') ? old('status') : '1';
+                    @endphp
                     <form id="serviceForm" action="{{ route('admin.event.services.store') }}" method="POST" class="grid-1 gap-card needs-validation" novalidate>
                         @csrf
                         <input type="hidden" name="_method" value="POST">

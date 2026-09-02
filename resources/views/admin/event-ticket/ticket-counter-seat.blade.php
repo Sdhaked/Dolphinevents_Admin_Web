@@ -32,11 +32,13 @@
 @endsection
 
 @section('body')
-    @php($currency = \App\Models\Currency::symbolForEvent($event ?? null))
-    @php($hasSelectedTicketType = filled($targetTicketTypeId))
-    @php($irelandCountry = $countries->first(fn ($country) => strcasecmp($country->name, 'Ireland') === 0))
-    @php($defaultCountryId = old('country_id', $irelandCountry?->id))
-    @php($defaultStateId = old('state_id'))
+    @php
+        $currency = \App\Models\Currency::symbolForEvent($event ?? null);
+        $hasSelectedTicketType = filled($targetTicketTypeId);
+        $irelandCountry = $countries->first(fn ($country) => strcasecmp($country->name, 'Ireland') === 0);
+        $defaultCountryId = old('country_id', $irelandCountry?->id);
+        $defaultStateId = old('state_id');
+    @endphp
     <!-- PRELOADER -->
     @include('admin._partials.preloader')
     @include('admin._partials.preloader002')

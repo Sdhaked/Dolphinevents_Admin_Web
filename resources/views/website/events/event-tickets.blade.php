@@ -93,7 +93,9 @@
                 @if ($hasTicketTypes)
                 <div class="ticket-row">
                     @foreach($event->ticketTypes as $ticket)
-                    @php($displayTicketPrice = $ticket->starting_price ?? 0)
+                    @php
+                        $displayTicketPrice = $ticket->starting_price ?? 0;
+                    @endphp
                     <div class="ticket-card" data-aos="fade-up">
                         <label for="ticket-{{ $ticket->id }}" class="over-hidden">
 

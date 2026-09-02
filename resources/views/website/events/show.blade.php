@@ -410,7 +410,9 @@
                                 <!-- Tickets -->
                                 <div class="grid-1 gap-card">
                                     @foreach($event->ticketTypes as $ticket)
-                                    @php($displayTicketPrice = $ticket->starting_price ?? 0)
+                                    @php
+                                        $displayTicketPrice = $ticket->starting_price ?? 0;
+                                    @endphp
                                     <!-- Ticket Card -->
                                     <div class="ticket-card {{ $ticket->available_tickets <= 0 ? 'sold-out' : '' }}">
                                         @if($ticket->available_tickets <= 0)

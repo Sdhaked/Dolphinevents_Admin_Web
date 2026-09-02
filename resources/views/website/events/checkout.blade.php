@@ -111,9 +111,11 @@
 @endsection
 
 @section('body')
-    @php($selectedCountry = $countries->first(fn ($country) => strcasecmp($country->name, 'United Kingdom') === 0))
-    @php($defaultCountryId = old('country_id', $selectedCountry?->id))
-    @php($defaultStateId = old('state_id'))
+    @php
+        $selectedCountry = $countries->first(fn ($country) => strcasecmp($country->name, 'United Kingdom') === 0);
+        $defaultCountryId = old('country_id', $selectedCountry?->id);
+        $defaultStateId = old('state_id');
+    @endphp
     <!-- Preloader -->
     @include('website._partials.preloader')
 

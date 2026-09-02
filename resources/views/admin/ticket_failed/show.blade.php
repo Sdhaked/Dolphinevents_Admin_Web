@@ -10,7 +10,9 @@
 @endsection
 
 @section('body')
-    @php($currency = \App\Models\Currency::symbolForEvent($ticket->event ?? null))
+    @php
+        $currency = \App\Models\Currency::symbolForEvent($ticket->event ?? null);
+    @endphp
 
     @include('admin._partials.preloader')
     @include('admin._partials.sidebar')
@@ -114,7 +116,9 @@
                             <tr>
                                 <th>Refund Status</th>
                                 <td>
-                                    @php($isRefunded = strtolower((string) $ticket->refund_status) === \App\Models\TicketCounter::REFUND_REFUNDED)
+                                    @php
+                                        $isRefunded = strtolower((string) $ticket->refund_status) === \App\Models\TicketCounter::REFUND_REFUNDED;
+                                    @endphp
                                     @if($isRefunded)
                                         <span class="green" id="refundStatusText">{{ $ticket->refund_status_label }}</span>
                                     @else

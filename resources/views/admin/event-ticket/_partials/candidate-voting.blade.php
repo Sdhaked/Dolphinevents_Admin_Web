@@ -44,7 +44,9 @@
                 <div class="modal-body">
                     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 row-cols-lg-5 g-4 main-row-modal44">
                         @foreach ($votingContestents as $contestent)
-                            @php($contestentImage = $contestent->image_url ?: $defaultContestentImage)
+                            @php
+                                $contestentImage = $contestent->image_url ?: $defaultContestentImage;
+                            @endphp
                             <div>
                                 <input
                                     type="radio"
