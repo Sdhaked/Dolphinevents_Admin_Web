@@ -17,9 +17,11 @@
 @endsection
 
 @section('body')
-    @php($currency = \App\Models\Currency::symbolForEvent($ticket->event ?? null))
-    @php($contestentVote = $ticket->contestentVotes->first())
-    @php($showVotedSection = $showVotedSection ?? (bool) $ticket->event?->enable_voting)
+    @php
+        $currency = \App\Models\Currency::symbolForEvent($ticket->event ?? null);
+        $contestentVote = $ticket->contestentVotes->first();
+        $showVotedSection = $showVotedSection ?? (bool) $ticket->event?->enable_voting;
+    @endphp
     <!-- PRELOADER -->
     @include('admin._partials.preloader')
 
