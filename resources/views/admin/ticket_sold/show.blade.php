@@ -360,51 +360,70 @@
             @if($ticket->services && $ticket->services->count() > 0)
                 <div class="style-box mt-4">
                     <h4 class="hd-sm">Service Tickets</h4>
+                    @php
+                        $serviceTicketRows = collect();
+
+                        foreach ($ticket->services as $service) {
+                            $passes = $service->passes ? $service->passes->sortBy('unit_number') : collect();
+
+                            if ($passes->isNotEmpty()) {
+                                foreach ($passes as $pass) {
+                                    $serviceTicketRows->push([
+                                        'code' => $pass->service_code,
+                                        'name' => $service->service_name ?? '-',
+                                        'status' => strtolower((string) $pass->status) === 'used' ? 'Scanned' : 'Not Scanned',
+                                        'scanned_at' => $pass->scanned_at,
+                                    ]);
+                                }
+
+                                continue;
+                            }
+
+                            $serviceTicketRows->push([
+                                'code' => $service->service_code ?? '-',
+                                'name' => $service->service_name ?? '-',
+                                'status' => 'Not Scanned',
+                                'scanned_at' => null,
+                            ]);
+                        }
+                    @endphp
                     <table class="table mob-view">
                     <thead>
                         <tr>
                             <th>S.No</th>
                             <th>Service Code</th>
                             <th>Service Name</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Time</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($ticket->services as $index => $service)
-                            <tr class="new">
+                        @foreach($serviceTicketRows as $index => $serviceTicket)
+                            <tr class="{{ $serviceTicket['status'] === 'Not Scanned' ? 'new' : '' }}">
                                 <td>
                                     <div class="data-label">S.No</div>
                                     <div>{{ $index + 1 }}.</div>
                                 </td>
                                 <td>
                                     <div class="data-label">Service Code</div>
-                                    <div>
-                                        @if($service->passes && $service->passes->count() > 0)
-                                            @foreach($service->passes->sortBy('unit_number') as $pass)
-                                                <div>{{ $pass->service_code }} - {{ ucfirst($pass->status) }}</div>
-                                            @endforeach
-                                        @else
-                                            {{ $service->service_code ?? '-' }}
-                                        @endif
-                                    </div>
+                                    <div>{{ $serviceTicket['code'] }}</div>
                                 </td>
                                 <td>
                                     <div class="data-label">Service Name</div>
-                                    <div>{{ $service->service_name ?? '-' }}</div>
+                                    <div>{{ $serviceTicket['name'] }}</div>
                                 </td>
                                 <td>
-                                    <div class="data-label">Qty</div>
-                                    <div>{{ $service->quantity }}</div>
+                                    <div class="data-label">Status</div>
+                                    <div>{{ $serviceTicket['status'] }}</div>
                                 </td>
                                 <td>
-                                    <div class="data-label">Price</div>
-                                    <div>{{ $currency }}{{ number_format((float) $service->price, 2) }}/-</div>
+                                    <div class="data-label">Scan Date</div>
+                                    <div>{{ $serviceTicket['scanned_at'] ? $serviceTicket['scanned_at']->format('d M Y') : '-' }}</div>
                                 </td>
                                 <td>
-                                    <div class="data-label">Total</div>
-                                    <div>{{ $currency }}{{ number_format((float) $service->total_amount, 2) }}/-</div>
+                                    <div class="data-label">Scan Time</div>
+                                    <div>{{ $serviceTicket['scanned_at'] ? $serviceTicket['scanned_at']->format('h:i A') : '-' }}</div>
                                 </td>
                             </tr>
                         @endforeach
