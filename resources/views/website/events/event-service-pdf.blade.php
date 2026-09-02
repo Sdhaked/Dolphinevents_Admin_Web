@@ -30,15 +30,31 @@
     @php
         $currency = \App\Models\Currency::symbolForEvent($event);
         $servicePasses = collect();
+        $hasServicePassTable = \Illuminate\Support\Facades\Schema::hasTable('ticket_counter_service_passes');
 
         foreach ($services as $service) {
             $quantity = max(0, (int) $service->quantity);
             $baseCode = $service->service_code ?: ('SV-' . $booking->booking_id . '-' . $service->id);
+            $passes = $hasServicePassTable
+                ? $service->passes()->orderBy('unit_number')->orderBy('id')->get()
+                : collect();
+
+            if ($passes->isNotEmpty()) {
+                foreach ($passes as $passRow) {
+                    $servicePasses->push([
+                        'service' => $service,
+                        'service_code' => $passRow->service_code,
+                        'unit' => $passRow->unit_number,
+                        'quantity' => $quantity,
+                    ]);
+                }
+
+                continue;
+            }
 
             for ($unit = 1; $unit <= $quantity; $unit++) {
                 $servicePasses->push([
                     'service' => $service,
-                    'base_code' => $baseCode,
                     'service_code' => $quantity > 1 ? $baseCode . '-' . str_pad((string) $unit, 2, '0', STR_PAD_LEFT) : $baseCode,
                     'unit' => $unit,
                     'quantity' => $quantity,

@@ -7,6 +7,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\TicketChecker;
 use App\Models\Event;
+use App\Models\TicketCounterService;
+use App\Models\TicketCounterServicePass;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -324,6 +326,87 @@ class TicketCheckerApiController extends Controller
         ]);
 
         return $this->successResponse($updatedData, 'Parking Ticket is Valid!');
+    }
+
+    /**
+     * Scan/Check Additional Service Pass API
+     */
+    public function checkServiceTicket(Request $request)
+    {
+        $checker = $request->user();
+
+        if (!$checker) {
+            return $this->errorResponse('Unauthorized', 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'service_code' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($this->formatValidationErrors($validator), 422);
+        }
+
+        $serviceCode = trim((string) $request->service_code);
+
+        $servicePass = TicketCounterServicePass::with([
+            'booking' => function ($query) {
+                $query->withTrashed()->with(['event', 'ticketType']);
+            },
+            'bookingService',
+        ])
+            ->where('service_code', $serviceCode)
+            ->first();
+
+        if (!$servicePass) {
+            $legacyBaseCode = preg_replace('/-\d{2}$/', '', $serviceCode);
+            $legacyService = TicketCounterService::with('booking')
+                ->whereIn('service_code', array_unique([$serviceCode, $legacyBaseCode]))
+                ->first();
+
+            if ($legacyService && $legacyService->booking) {
+                app(\App\Services\ServicePassService::class)->ensurePassesForService($legacyService);
+
+                $servicePass = TicketCounterServicePass::with([
+                    'booking' => function ($query) {
+                        $query->withTrashed()->with(['event', 'ticketType']);
+                    },
+                    'bookingService',
+                ])
+                    ->where('service_code', $serviceCode)
+                    ->first();
+            }
+        }
+
+        if (!$servicePass || !$servicePass->booking || !$servicePass->booking->event || !$servicePass->bookingService) {
+            return $this->errorResponse(['message' => 'INVALID SERVICE PASS'], 404);
+        }
+
+        if ($servicePass->booking && $servicePass->booking->trashed()) {
+            return $this->errorResponse(['message' => 'INVALID SERVICE PASS (ALERT)'], 404);
+        }
+
+        if ($servicePass->booking->event_id !== $checker->event_id) {
+            return $this->errorResponse('You\'re not authorized to scan this service pass', 403);
+        }
+
+        if ($servicePass->status === TicketCounterServicePass::STATUS_USED) {
+            return $this->successResponse(
+                $servicePass->fresh(['booking.event', 'booking.ticketType', 'bookingService'])->toArray(),
+                'USED SERVICE PASS'
+            );
+        }
+
+        $servicePass->update([
+            'status' => TicketCounterServicePass::STATUS_USED,
+            'scanned_at' => now(),
+            'scanned_by' => $checker->id,
+        ]);
+
+        return $this->successResponse(
+            $servicePass->fresh(['booking.event', 'booking.ticketType', 'bookingService'])->toArray(),
+            'VALID SERVICE PASS'
+        );
     }
 
     protected function hasEventStarted(?Event $event): bool

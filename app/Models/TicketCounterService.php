@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TicketCounterService extends Model
 {
@@ -32,5 +33,10 @@ class TicketCounterService extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(EventService::class, 'event_service_id');
+    }
+
+    public function passes(): HasMany
+    {
+        return $this->hasMany(TicketCounterServicePass::class, 'ticket_counter_service_id');
     }
 }

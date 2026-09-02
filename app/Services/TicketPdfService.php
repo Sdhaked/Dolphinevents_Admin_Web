@@ -23,13 +23,18 @@ class TicketPdfService
      */
     public function generatePdfs($booking): array
     {
+        $serviceRelation = Schema::hasTable('ticket_counter_service_passes')
+            ? 'services.passes'
+            : 'services';
+
         $booking->load([
             'parkings',
-            'services' => fn ($query) => $query->orderBy('id'),
+            $serviceRelation,
             'ageGroups',
         ]);
         $this->prepareBookedTicketsForPdf($booking);
         $this->ensureServiceCodes($booking);
+        app(ServicePassService::class)->ensurePassesForBooking($booking);
 
         $event = Event::with('support')->find($booking->event_id);
         $ticketType = TicketType::find($booking->ticket_type_id);
@@ -112,7 +117,7 @@ class TicketPdfService
             ])->save();
         }
 
-        $booking->setRelation('services', $booking->services()->orderBy('id')->get());
+        $booking->setRelation('services', $booking->services()->with('passes')->orderBy('id')->get());
     }
 
     private function uniqueServiceCode(): string

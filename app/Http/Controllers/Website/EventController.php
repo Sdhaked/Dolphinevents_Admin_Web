@@ -3266,6 +3266,8 @@ class EventController extends Controller
             }
         }
 
+        app(\App\Services\ServicePassService::class)->ensurePassesForBooking($booking);
+
         $hold->delete();
 
         return $booking->fresh(['parkings', 'services', 'ageGroups', 'ticketType', 'event']);

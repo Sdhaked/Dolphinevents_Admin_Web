@@ -380,7 +380,15 @@
                                 </td>
                                 <td>
                                     <div class="data-label">Service Code</div>
-                                    <div>{{ $service->service_code ?? '-' }}</div>
+                                    <div>
+                                        @if($service->passes && $service->passes->count() > 0)
+                                            @foreach($service->passes->sortBy('unit_number') as $pass)
+                                                <div>{{ $pass->service_code }} - {{ ucfirst($pass->status) }}</div>
+                                            @endforeach
+                                        @else
+                                            {{ $service->service_code ?? '-' }}
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="data-label">Service Name</div>

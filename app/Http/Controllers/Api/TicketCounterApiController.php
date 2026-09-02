@@ -895,6 +895,8 @@ public function store(Request $request)
                     ]);
                 }
 
+                app(\App\Services\ServicePassService::class)->ensurePassesForBooking($newBooking);
+
                 // 4. Handle Parking
                 $parkingSlots = $request->parking_slots;
                 $parkingCount = is_array($parkingSlots) ? count($parkingSlots) : (int)$parkingSlots;

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\BookedTicket;
 use App\Models\TicketParking;
 use App\Models\TicketCounterService;
+use App\Models\TicketCounterServicePass;
 use App\Models\DiscountCoupon;
 use App\Models\Event;
 use App\Services\ExpiredCheckoutHoldService;
@@ -185,6 +186,9 @@ class TicketSoldController extends Controller
     {
         BookedTicket::where('ticket_counter_id', $ticket->id)->delete();
         TicketParking::where('ticket_counter_id', $ticket->id)->delete();
+        if (Schema::hasTable('ticket_counter_service_passes')) {
+            TicketCounterServicePass::where('ticket_counter_id', $ticket->id)->delete();
+        }
         TicketCounterService::where('ticket_counter_id', $ticket->id)->delete();
     }
 
@@ -292,7 +296,7 @@ class TicketSoldController extends Controller
             'bookedTickets',
             'coupon',
             'parkings',
-            'services',
+            'services.passes',
             'country',
             'state',
             'contestentVotes.contestent',
@@ -317,7 +321,7 @@ class TicketSoldController extends Controller
             'creator',
             'coupon',
             'parkings',
-            'services',
+            'services.passes',
             'country',
             'state',
             'paymentTransaction',
@@ -494,7 +498,7 @@ class TicketSoldController extends Controller
     public function regeneratePDF($id)
     {
         try {
-            $booking = TicketCounter::withTrashed()->with(['parkings', 'services', 'ticketType', 'event'])->findOrFail($id);
+            $booking = TicketCounter::withTrashed()->with(['parkings', 'services.passes', 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->generatePdfs($booking);
             
             return response()->json([
@@ -516,7 +520,7 @@ class TicketSoldController extends Controller
     public function resendEmail($id)
     {
         try {
-            $booking = TicketCounter::withTrashed()->with(['parkings', 'services', 'ticketType', 'event'])->findOrFail($id);
+            $booking = TicketCounter::withTrashed()->with(['parkings', 'services.passes', 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->sendTicketEmail($booking);
             $booking->forceFill(['ticket_email_sent_at' => now()])->save();
             $hasParking = $booking->parkings && $booking->parkings->count() > 0;
