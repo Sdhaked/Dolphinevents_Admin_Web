@@ -362,9 +362,12 @@
                     <h4 class="hd-sm">Service Tickets</h4>
                     @php
                         $serviceTicketRows = collect();
+                        $hasServicePassTable = \Illuminate\Support\Facades\Schema::hasTable('ticket_counter_service_passes');
 
                         foreach ($ticket->services as $service) {
-                            $passes = $service->passes ? $service->passes->sortBy('unit_number') : collect();
+                            $passes = $hasServicePassTable && $service->relationLoaded('passes')
+                                ? $service->passes->sortBy('unit_number')
+                                : collect();
 
                             if ($passes->isNotEmpty()) {
                                 foreach ($passes as $pass) {
