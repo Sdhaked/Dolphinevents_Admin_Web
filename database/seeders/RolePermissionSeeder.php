@@ -74,6 +74,15 @@ class RolePermissionSeeder extends Seeder
                 'Edit Bulk Discounts',
                 'Delete Bulk Discounts',
             ]),
+            $this->permissionsFor('Event Services', [
+                'Manage Event Services',
+                'View Event Services',
+                'Create Event Services',
+                'Edit Event Services',
+                'Delete Event Services',
+                'Manage Reserved',
+                'Delete Reserved',
+            ]),
             $this->permissionsFor('Ticket Sold', [
                 'Manage Ticket Sold',
                 'View Sold Tickets',
@@ -252,6 +261,10 @@ class RolePermissionSeeder extends Seeder
                 'Empty Ticket Sold Trash',
                 'Delete Trash Records',
                 'Permanently Delete Sold Tickets',
+            ],
+            'Event Services' => [
+                'Manage Reserved',
+                'Delete Reserved',
             ],
         ]);
 

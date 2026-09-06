@@ -5,12 +5,29 @@
     @include('admin._partials.head.g-links')
     @include('admin._partials.head.g-css-files')
     @include('admin._partials.head.g-js-files')
+    <style>
+        #reservedFieldsSection { color: var(--color-text-200); }
+        #reservedFieldsSection.border, #reservedFieldsSection .reserved-field.border {
+            border-color: var(--color-border-100) !important;
+        }
+        #reservedFieldsSection [data-field-heading], #reservedFieldsSection summary {
+            color: var(--color-hd-100);
+        }
+        #reservedFieldsSection summary { cursor: pointer; }
+        #reservedFieldsSection [data-remove-field] { color: var(--color-status-danger); }
+    </style>
 @endsection
 
 @section('body')
     @include('admin._partials.preloader')
     @include('admin._partials.sidebar')
     @include('admin._partials.header')
+
+    @php
+        $showReservedColumn = $canManageReservedServices ?? false;
+        $reservedDeleteAllowed = $canDeleteReservedServices ?? false;
+        $serviceDeleteAllowed = $canDeleteEventServices ?? false;
+    @endphp
 
     <section class="wrapper">
         <main class="dash-content">
@@ -36,6 +53,9 @@
                             <th>Qty</th>
                             <th>Limit</th>
                             <th>Mandatory</th>
+                            @if ($showReservedColumn)
+                                <th>Reserved</th>
+                            @endif
                             <th>Ticket Types</th>
                             <th>Action</th>
                         </tr>
@@ -49,6 +69,9 @@
                                 <td>{{ $service->available_quantity }}</td>
                                 <td>{{ $service->max_buy_limit }}</td>
                                 <td>{{ $service->is_mandatory ? 'Yes' : 'No' }}</td>
+                                @if ($showReservedColumn)
+                                    <td>{{ $service->is_reserved ? 'True' : 'False' }}</td>
+                                @endif
                                 <td>
                                     @php
                                         $ids = array_map('intval', $service->applicable_ticket_type_ids ?? []);
@@ -69,23 +92,30 @@
                                             data-limit="{{ $service->max_buy_limit }}"
                                             data-price="{{ $service->price }}"
                                             data-mandatory="{{ $service->is_mandatory ? 1 : 0 }}"
+                                            data-service-id="{{ $service->id }}"
+                                            @if ($showReservedColumn)
+                                                data-reserved="{{ $service->is_reserved ? 1 : 0 }}"
+                                                data-reserved-fields="{{ $service->fields->toJson() }}"
+                                            @endif
                                             data-status="{{ $service->status ? 1 : 0 }}"
                                             data-ticket-types='@json($service->applicable_ticket_type_ids ?? [])'>
                                             <i class="fa-regular fa-pen-to-square"></i>
                                         </button>
-                                        <form action="{{ route('admin.event.services.destroy', $service) }}" method="POST">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="action-btn delete">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </form>
+                                        @if ($serviceDeleteAllowed && (!$service->is_reserved || $reservedDeleteAllowed))
+                                            <form action="{{ route('admin.event.services.destroy', $service) }}" method="POST">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="action-btn delete">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center">No event services found.</td>
+                                <td colspan="{{ $showReservedColumn ? 9 : 8 }}" class="text-center">No event services found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -99,7 +129,7 @@
     </section>
 
     <div class="modal fade" id="serviceModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h6 class="hd-sm m-0" id="serviceModalTitle">Create Event Service</h6>
@@ -115,6 +145,7 @@
                     <form id="serviceForm" action="{{ route('admin.event.services.store') }}" method="POST" class="grid-1 gap-card needs-validation" novalidate>
                         @csrf
                         <input type="hidden" name="_method" value="POST">
+                        <input type="hidden" name="_service_id" id="serviceEditId" value="{{ old('_service_id') }}">
 
                         <div class="d-flex flex-wrap gap-card">
                             <button type="button" class="check-btn">
@@ -127,8 +158,17 @@
                                     id="serviceStatus" {{ $oldStatusChecked ? 'checked' : '' }}>
                                 <label for="serviceStatus">Active</label>
                             </button>
+                            @if ($showReservedColumn)
+                                <button type="button" class="check-btn">
+                                    <input class="form-check-input" name="is_reserved" type="checkbox" value="1"
+                                        id="serviceReserved" {{ old('is_reserved') ? 'checked' : '' }}>
+                                    <label for="serviceReserved" title="Configure additional information for this service.">Reserved</label>
+                                </button>
+                            @endif
                         </div>
-
+                        @if ($showReservedColumn)
+                            @include('admin.event_services._reserved-fields')
+                        @endif
                         <div class="form-floating">
                             <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
                                 id="serviceName" value="{{ old('name') }}" maxlength="255" required>
@@ -218,6 +258,9 @@
         </div>
     </div>
 
+    @if ($showReservedColumn)
+        <script src="{{ asset('javascript/admin/event-service-reserved-fields.js') }}"></script>
+    @endif
     <script>
         const serviceModal = document.getElementById('serviceModal');
         const serviceForm = document.getElementById('serviceForm');
@@ -226,8 +269,15 @@
         const serviceQtyInput = document.getElementById('serviceQty');
         const serviceLimitInput = document.getElementById('serviceLimit');
         const servicePriceInput = document.getElementById('servicePrice');
+        const serviceReservedInput = document.getElementById('serviceReserved');
+        const serviceEditId = document.getElementById('serviceEditId');
         const hasServiceValidationErrors = @json($errors->any());
         const serviceStoreAction = @json(route('admin.event.services.store'));
+        const serviceUpdateAction = @json(route('admin.event.services.update', ['eventService' => '__SERVICE__']));
+        const oldServiceId = @json(old('_service_id'));
+        const oldReservedFields = @json($showReservedColumn ? ($reservedFieldsForRetry ?? old('reserved_fields', [])) : []);
+
+        window.serviceReservedFields?.load(oldReservedFields);
 
         document.querySelectorAll('[data-feedback-for]').forEach((feedback) => {
             feedback.dataset.defaultMessage = feedback.textContent.trim();
@@ -237,12 +287,18 @@
             return document.querySelector(`[data-feedback-for="${input.id}"]`);
         }
 
-        function setServiceFeedback(input, message) {
+        function setServiceFeedback(input, message, showInvalid = false) {
             input.setCustomValidity(message || '');
 
             const feedback = serviceFeedback(input);
             if (feedback) {
                 feedback.textContent = message || feedback.dataset.defaultMessage || '';
+            }
+
+            if (message && showInvalid) {
+                input.classList.add('is-invalid');
+            } else if (!message) {
+                input.classList.remove('is-invalid');
             }
         }
 
@@ -260,38 +316,43 @@
             servicePriceInput.value = '';
             document.getElementById('serviceMandatory').checked = false;
             document.getElementById('serviceStatus').checked = true;
+            if (serviceReservedInput) {
+                serviceReservedInput.checked = false;
+            }
+            serviceEditId.value = '';
+            window.serviceReservedFields?.load([]);
             document.querySelectorAll('.service-ticket-type').forEach((checkbox) => {
                 checkbox.checked = false;
             });
         }
 
-        function validateIntegerField(input, label) {
+        function validateIntegerField(input, label, showInvalid = false) {
             if (!input.value) {
                 setServiceFeedback(input, '');
                 return;
             }
 
             if (!/^\d+$/.test(input.value)) {
-                setServiceFeedback(input, `${label} must be a whole number.`);
+                setServiceFeedback(input, `${label} must be a whole number.`, showInvalid);
                 return;
             }
 
             if (Number(input.value) < 1) {
-                setServiceFeedback(input, `${label} must be at least 1.`);
+                setServiceFeedback(input, `${label} must be at least 1.`, showInvalid);
                 return;
             }
 
             if (Number(input.value) > 999999) {
-                setServiceFeedback(input, `${label} cannot be more than 999999.`);
+                setServiceFeedback(input, `${label} cannot be more than 999999.`, showInvalid);
                 return;
             }
 
             setServiceFeedback(input, '');
         }
 
-        function validateServiceForm() {
-            validateIntegerField(serviceQtyInput, 'Available quantity');
-            validateIntegerField(serviceLimitInput, 'Max buy limit');
+        function validateServiceForm(showInvalid = false) {
+            validateIntegerField(serviceQtyInput, 'Available quantity', showInvalid);
+            validateIntegerField(serviceLimitInput, 'Max buy limit', showInvalid);
 
             if (serviceQtyInput.value && /^\d+$/.test(serviceQtyInput.value) && Number(serviceQtyInput.value) >= 1) {
                 serviceLimitInput.max = serviceQtyInput.value;
@@ -302,15 +363,15 @@
             const quantityIsValid = /^\d+$/.test(serviceQtyInput.value) && Number(serviceQtyInput.value) >= 1;
             const limitIsValidInteger = /^\d+$/.test(serviceLimitInput.value) && Number(serviceLimitInput.value) >= 1;
             if (quantityIsValid && limitIsValidInteger && Number(serviceLimitInput.value) > Number(serviceQtyInput.value)) {
-                setServiceFeedback(serviceLimitInput, 'Max buy limit cannot be more than available quantity.');
+                setServiceFeedback(serviceLimitInput, 'Max buy limit cannot be more than available quantity.', showInvalid);
             }
 
             if (!servicePriceInput.value) {
                 setServiceFeedback(servicePriceInput, '');
             } else if (!/^\d+(\.\d{1,2})?$/.test(servicePriceInput.value)) {
-                setServiceFeedback(servicePriceInput, 'Price can have a maximum of 2 decimal places.');
+                setServiceFeedback(servicePriceInput, 'Price can have a maximum of 2 decimal places.', showInvalid);
             } else if (Number(servicePriceInput.value) > 99999999.99) {
-                setServiceFeedback(servicePriceInput, 'Price is too high.');
+                setServiceFeedback(servicePriceInput, 'Price is too high.', showInvalid);
             } else {
                 setServiceFeedback(servicePriceInput, '');
             }
@@ -318,6 +379,14 @@
 
         serviceModal.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
+            if (!button && hasServiceValidationErrors) {
+                if (oldServiceId) {
+                    serviceForm.action = serviceUpdateAction.replace('__SERVICE__', encodeURIComponent(oldServiceId));
+                    methodInput.value = 'PUT';
+                    document.getElementById('serviceModalTitle').textContent = 'Update Event Service';
+                }
+                return;
+            }
             serviceForm.classList.remove('was-validated');
             serviceForm.querySelectorAll('.is-invalid').forEach((field) => {
                 field.classList.remove('is-invalid');
@@ -345,6 +414,11 @@
             document.getElementById('servicePrice').value = button.dataset.price || 0;
             document.getElementById('serviceMandatory').checked = button.dataset.mandatory === '1';
             document.getElementById('serviceStatus').checked = button.dataset.status === '1';
+            if (serviceReservedInput) {
+                serviceReservedInput.checked = button.dataset.reserved === '1';
+            }
+            serviceEditId.value = button.dataset.serviceId || '';
+            window.serviceReservedFields?.load(JSON.parse(button.dataset.reservedFields || '[]'));
 
             const ids = JSON.parse(button.dataset.ticketTypes || '[]').map(String);
             document.querySelectorAll('.service-ticket-type').forEach((checkbox) => {
@@ -360,18 +434,21 @@
         });
 
         [serviceQtyInput, serviceLimitInput, servicePriceInput].forEach((input) => {
-            input.addEventListener('input', validateServiceForm);
+            input.addEventListener('input', () => validateServiceForm(true));
+            input.addEventListener('blur', () => validateServiceForm(true));
         });
 
         serviceForm.addEventListener('submit', function (event) {
-            validateServiceForm();
+            validateServiceForm(true);
+            const reservedFieldsValid = window.serviceReservedFields?.validate(true) ?? true;
 
-            if (!serviceForm.checkValidity()) {
+            if (!serviceForm.checkValidity() || !reservedFieldsValid) {
                 event.preventDefault();
                 event.stopPropagation();
                 serviceForm.classList.add('was-validated');
 
                 const firstInvalid = serviceForm.querySelector(':invalid');
+                if (firstInvalid?.closest('details')) firstInvalid.closest('details').open = true;
                 firstInvalid?.focus();
 
                 if (typeof createNotification === 'function') {
@@ -383,7 +460,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             if (!hasServiceValidationErrors) return;
 
-            validateServiceForm();
+            validateServiceForm(true);
             serviceForm.classList.add('was-validated');
             bootstrap.Modal.getOrCreateInstance(serviceModal).show();
 

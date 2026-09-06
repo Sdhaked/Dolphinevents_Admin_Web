@@ -237,6 +237,21 @@ class EnsureAdminPermission
                 'event-services-manage-event-services',
                 'ticket-types-manage-ticket-types',
             ],
+            'admin.event.services.store' => [
+                'event-services-create-event-services',
+                'event-services-manage-event-services',
+                'ticket-types-manage-ticket-types',
+            ],
+            'admin.event.services.update' => [
+                'event-services-edit-event-services',
+                'event-services-manage-event-services',
+                'ticket-types-manage-ticket-types',
+            ],
+            'admin.event.services.destroy' => [
+                'event-services-delete-event-services',
+                'event-services-manage-event-services',
+                'ticket-types-manage-ticket-types',
+            ],
             default => [
                 'event-services-manage-event-services',
                 'ticket-types-manage-ticket-types',
