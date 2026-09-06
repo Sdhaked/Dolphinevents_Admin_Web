@@ -144,23 +144,6 @@
                                 </td>
                             </tr>
 
-                            @if($ticket->parkings && $ticket->parkings->count() > 0)
-                                <tr>
-                                    <th>Car Ticket PDF</th>
-                                    <td>
-                                        @if(\Illuminate\Support\Facades\Storage::disk('public')->exists('tickets/' . $ticket->booking_id . '/Parking_Passes_' . $ticket->booking_id . '.pdf'))
-                                            <a href="{{ asset('storage/tickets/' . $ticket->booking_id . '/Parking_Passes_' . $ticket->booking_id . '.pdf') }}" target="_blank" class="text-prim me-3">
-                                                <i class="fa-solid fa-file-pdf me-1"></i>&nbsp;View&nbsp;PDF
-                                            </a>
-                                        @else
-                                            <span class="text-muted me-3">
-                                                <i class="fa-solid fa-exclamation-triangle me-1"></i>PDF not found
-                                            </span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endif
-
                             @if($ticket->services && $ticket->services->count() > 0)
                                 <tr>
                                     <th>Service Ticket PDF</th>
@@ -305,60 +288,6 @@
 
             </div>
             
-            @if($ticket->parkings && $ticket->parkings->count() > 0)
-                <div class="style-box mt-4">
-                    <h4 class="hd-sm">Parking Tickets</h4>
-                    <!-- Table -->
-                    <table class="table mob-view">
-                    <thead>
-                        <tr>
-                            <th>S.No</th>
-                            <th>Parking Code</th>
-                            <th>Car Number</th>
-                            <th>Status</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($ticket->parkings as $index => $parking)
-                            <tr class="{{ strtolower((string)$parking->status) === 'unused' ? 'new' : '' }}">
-                                <td>
-                                    <div class="data-label">S.No</div>
-                                    <div>{{ $index + 1 }}.</div>
-                                </td>
-                                <td>
-                                    <div class="data-label">Parking Code</div>
-                                    <div>{{ $parking->parking_code ?? '-' }}</div>
-                                </td>
-                                <td>
-                                    <div class="data-label">Car Number</div>
-                                    <div>{{ $parking->car_number ?? '-' }}</div>
-                                </td>
-                                <td>
-                                    <div class="data-label">Status</div>
-                                    <div>{{ strtolower((string)$parking->status) === 'unused' ? 'Not Scanned' : 'Scanned' }}</div>
-                                </td>
-                                <td>
-                                    <div class="data-label">Scan Date</div>
-                                    <div>{{ $parking->scanned_at ? $parking->scanned_at->format('d M Y') : '-' }}</div>
-                                </td>
-                                <td>
-                                    <div class="data-label">Scan Time</div>
-                                    <div>{{ $parking->scanned_at ? $parking->scanned_at->format('h:i A') : '-' }}</div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center">No car tickets found for this booking.</td>
-                            </tr>
-                        @endforelse
-
-                    </tbody>
-                    </table>
-                </div>
-            @endif
-
             @if($ticket->services && $ticket->services->count() > 0)
                 <div class="style-box mt-4">
                     <h4 class="hd-sm">Service Tickets</h4>
@@ -378,6 +307,9 @@
                                         'name' => $service->service_name ?? '-',
                                         'status' => strtolower((string) $pass->status) === 'used' ? 'Scanned' : 'Not Scanned',
                                         'scanned_at' => $pass->scanned_at,
+                                        'field_values' => $service->relationLoaded('fieldValues')
+                                            ? $service->fieldValues->where('unit_number', $pass->unit_number)->values()
+                                            : collect(),
                                     ]);
                                 }
 
@@ -389,6 +321,9 @@
                                 'name' => $service->service_name ?? '-',
                                 'status' => 'Not Scanned',
                                 'scanned_at' => null,
+                                'field_values' => $service->relationLoaded('fieldValues')
+                                    ? $service->fieldValues->where('unit_number', 1)->values()
+                                    : collect(),
                             ]);
                         }
                     @endphp
@@ -398,6 +333,7 @@
                             <th>S.No</th>
                             <th>Service Code</th>
                             <th>Service Name</th>
+                            <th>Additional Information</th>
                             <th>Status</th>
                             <th>Date</th>
                             <th>Time</th>
@@ -417,6 +353,22 @@
                                 <td>
                                     <div class="data-label">Service Name</div>
                                     <div>{{ $serviceTicket['name'] }}</div>
+                                </td>
+                                <td>
+                                    <div class="data-label">Additional Information</div>
+                                    @forelse($serviceTicket['field_values'] as $fieldValue)
+                                        @php
+                                            $displayValue = match (true) {
+                                                is_bool($fieldValue->value) => $fieldValue->value ? 'Yes' : 'No',
+                                                is_array($fieldValue->value) => implode(', ', $fieldValue->value),
+                                                $fieldValue->value === null || $fieldValue->value === '' => '-',
+                                                default => (string) $fieldValue->value,
+                                            };
+                                        @endphp
+                                        <div><strong>{{ $fieldValue->field_label }}:</strong> {{ $displayValue }}</div>
+                                    @empty
+                                        <div>-</div>
+                                    @endforelse
                                 </td>
                                 <td>
                                     <div class="data-label">Status</div>

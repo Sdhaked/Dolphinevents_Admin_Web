@@ -29,8 +29,6 @@ class PaymentTransaction extends Model
         'amount',
         'quantity',
         'selected_seats',
-        'parking_slots',
-        'car_details',
         'coupon_code',
         'customer_name',
         'customer_email',
@@ -51,13 +49,16 @@ class PaymentTransaction extends Model
         'amount' => 'decimal:2',
         'quantity' => 'integer',
         'selected_seats' => 'array',
-        'parking_slots' => 'integer',
-        'car_details' => 'array',
         'initiated_at' => 'datetime',
         'completed_at' => 'datetime',
         'failed_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'raw_payload' => 'array',
+    ];
+
+    protected $hidden = [
+        'parking_slots',
+        'car_details',
     ];
 
     public function ticketCounter(): BelongsTo

@@ -54,6 +54,7 @@ class TicketCounterController extends Controller
             ? EventContestent::where('event_id', $eventId)->orderBy('name')->get()
             : collect();
         $eventServices = EventService::where('event_id', $eventId)
+            ->with('fields')
             ->where('status', true)
             ->orderBy('id')
             ->get();
@@ -131,14 +132,6 @@ class TicketCounterController extends Controller
 
 
         
-        // Count how many parking tickets have already been issued for this event
-        $parkingBookedSlots = \App\Models\TicketParking::whereHas('booking', function($query) use ($event) {
-            $query->where('event_id', $event->id);
-        })->count();
-
-        // Calculate remaining slots
-        $remainingSlots = max(0, $event->car_parking_slots - $parkingBookedSlots);
-
         return view($viewPath, [
             'event'              => $event,
             'ticketTypes'        => $ticketTypes,
@@ -150,7 +143,6 @@ class TicketCounterController extends Controller
             'rwdata'             => $layouts->get('RW', []),
             'seatAssignments'    => $seatAssignments,
             'heldSeatIds'        => $heldSeatIds,
-            'remainingSlots'        => $remainingSlots,
             'slabs'              => $slabs,
             'contestents'        => $contestents,
             'eventServices'      => $eventServices,
@@ -540,7 +532,7 @@ class TicketCounterController extends Controller
 
             // Generate PDF and send email
             try {
-                $ticketCounter->load(['parkings', 'ticketType', 'event']);
+                $ticketCounter->load(['services.fieldValues', 'ticketType', 'event']);
                 app(TicketPdfService::class)->sendTicketEmail($ticketCounter);
             } catch (\Exception $e) {
                 \Log::error('PDF/Email generation failed: ' . $e->getMessage());

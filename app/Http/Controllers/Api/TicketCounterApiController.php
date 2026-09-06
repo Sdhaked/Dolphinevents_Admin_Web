@@ -14,10 +14,12 @@ use App\Models\EventContestentVote;
 use App\Models\EventService;
 use App\Models\TicketCounterAgeGroup;
 use App\Models\TicketCounterService;
+use App\Services\EventServiceFieldResponseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 use App\Services\TicketPdfService;
 
@@ -404,7 +406,13 @@ class TicketCounterApiController extends Controller
     public function calculateBill(Request $request)
     {
         try {
-            return response()->json($this->buildBillData($request));
+            return response()->json($this->buildBillData($request, false));
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?: 'The selected services are invalid.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\RuntimeException $e) {
             return response()->json([
                 'success' => false,
@@ -413,17 +421,17 @@ class TicketCounterApiController extends Controller
         }
     }
 
-    private function buildBillData(Request $request): array
+    private function buildBillData(Request $request, bool $strictServiceFields = false): array
     {
         $eventId = $request->event_id ?? session('active_event_id');
         $ticket_type_id = $request->ticket_type_id;
         $couponCode = $request->coupon_code;
-        $parkingSlots = (int) ($request->parking_slots ?? 0);
         $selectedSeats = $this->normalizeSelectedSeats($request);
 
         $event = Event::findOrFail($eventId);
-        $parkingPricePerSlot = $event->car_slot_price ?? 0;
-        $ticketType = TicketType::with('ageGroups')->findOrFail($ticket_type_id);
+        $ticketType = TicketType::with('ageGroups')
+            ->where('event_id', $eventId)
+            ->findOrFail($ticket_type_id);
 
         $quantity = !empty($selectedSeats)
             ? count($selectedSeats)
@@ -484,15 +492,54 @@ class TicketCounterApiController extends Controller
         }
 
         // --- Services ---
-        $requestedServices = collect($request->service_items ?? [])
-            ->mapWithKeys(fn ($item) => [(int) ($item['id'] ?? 0) => max(0, (int) ($item['quantity'] ?? 0))]);
+        $submittedServiceItems = collect(is_array($request->service_items ?? null) ? $request->service_items : [])->values();
+        $requestedServices = collect();
 
-        $serviceItems = EventService::where('event_id', $eventId)
-            ->where('status', true)
-            ->get()
-            ->filter(fn (EventService $service) => $service->isApplicableToTicketType($ticket_type_id))
-            ->map(function (EventService $service) use ($requestedServices) {
-                $quantity = (int) ($requestedServices[$service->id] ?? 0);
+        foreach ($submittedServiceItems as $requestIndex => $item) {
+            if (!is_array($item) || empty($item['id'])) {
+                throw ValidationException::withMessages([
+                    "service_items.{$requestIndex}.id" => 'Please select a valid event service.',
+                ]);
+            }
+
+            $serviceId = (int) $item['id'];
+            if ($requestedServices->has($serviceId)) {
+                throw ValidationException::withMessages([
+                    "service_items.{$requestIndex}.id" => 'Each event service may only be selected once.',
+                ]);
+            }
+
+            $requestedServices->put($serviceId, [
+                'request_index' => $requestIndex,
+                'quantity' => max(0, (int) ($item['quantity'] ?? 0)),
+                'field_values' => $item['field_values'] ?? [],
+            ]);
+        }
+
+        $serviceQuery = EventService::with('fields')
+            ->where('event_id', $eventId)
+            ->where('status', true);
+
+        if (DB::transactionLevel() > 0) {
+            $serviceQuery->lockForUpdate();
+        }
+
+        $applicableServices = $serviceQuery->get()
+            ->filter(fn (EventService $service) => $service->isApplicableToTicketType($ticket_type_id));
+
+        foreach ($requestedServices as $serviceId => $item) {
+            if (!$applicableServices->contains('id', $serviceId)) {
+                throw ValidationException::withMessages([
+                    "service_items.{$item['request_index']}.id" => 'This event service is unavailable for the selected ticket type.',
+                ]);
+            }
+        }
+
+        $responseService = app(EventServiceFieldResponseService::class);
+        $serviceItems = $applicableServices
+            ->map(function (EventService $service) use ($requestedServices, $responseService, $strictServiceFields) {
+                $submitted = $requestedServices->get($service->id, []);
+                $quantity = (int) ($submitted['quantity'] ?? 0);
 
                 if ($service->is_mandatory) {
                     $quantity = max(1, $quantity);
@@ -524,12 +571,22 @@ class TicketCounterApiController extends Controller
                     }
                 }
 
+                $requestIndex = $submitted['request_index'] ?? $service->id;
+                $fieldResponses = $responseService->validateAndNormalize(
+                    $service,
+                    $quantity,
+                    $submitted['field_values'] ?? [],
+                    "service_items.{$requestIndex}",
+                    strict: $strictServiceFields
+                );
+
                 return [
                     'id' => $service->id,
                     'name' => $service->name,
                     'quantity' => $quantity,
                     'price' => (float) $service->price,
                     'total' => round($quantity * (float) $service->price, 2),
+                    'field_responses' => $fieldResponses,
                 ];
             })
             ->filter()
@@ -537,17 +594,11 @@ class TicketCounterApiController extends Controller
 
         $serviceTotal = $serviceItems->sum('total');
 
-        // --- Parking ---
-        $parkingTotal = 0;
-        if($event->enable_car_parking && $parkingSlots > 0) {
-            $parkingTotal = $parkingSlots * $parkingPricePerSlot;
-        }
-
-        $orderSubtotal = $subtotal + $serviceTotal + $parkingTotal;
+        $orderSubtotal = $subtotal + $serviceTotal;
 
         // --- Tax & Extra Charges ---
         $ticketTotalAfterDiscount = max(0, $subtotal - $discountAmount);
-        $taxableBasis = $ticketTotalAfterDiscount + $serviceTotal + $parkingTotal;
+        $taxableBasis = $ticketTotalAfterDiscount + $serviceTotal;
         
         $taxAmount = 0;
         if ($ticketType->enable_tax) {
@@ -580,9 +631,6 @@ class TicketCounterApiController extends Controller
                 'total' => $currency . number_format($item['total'], 2),
             ])->all(),
             'service_total' => $currency . number_format($serviceTotal, 2),
-            'parking_price' => $currency . number_format($parkingPricePerSlot, 2),
-            'parking_slots' => $parkingSlots,
-            'parking_total' => $currency . number_format($parkingTotal, 2),
             
             'bulk_discount_applied' => $bulkDiscountApplied,
             'bulk_discount_percentage' => $appliedDiscountPercentage,
@@ -615,113 +663,6 @@ class TicketCounterApiController extends Controller
         ];
     }
 
-    public function calculateBillOld(Request $request)
-    {
-        //Payload request
-        $eventId = $request->event_id ?? session('active_event_id');
-        $ticket_type_id = $request->ticket_type_id;
-        $quantity = $request->quantity ?? 1;
-        $couponCode = $request->coupon_code;
-        $parkingSlots = (int) ($request->parking_slots ?? 0);
-
-        //Get details
-        $event = Event::findOrFail($eventId);
-        $parkingPricePerSlot = $event->car_slot_price ?? 0;
-       
-        $ticketType = TicketType::findOrFail($ticket_type_id);
-        
-        //Calculate the total
-        $subtotal = $ticketType->ticket_price * $quantity;
-        $final_amount = $subtotal;
-
-
-        $parkingTotal = 0;
-        $alreadyBooked = \App\Models\TicketParking::whereHas('booking', function($q) use ($event) {
-            $q->where('event_id', $event->id);
-        })->count();
-
-        $availableSlots = (int) $event->car_parking_slots - $alreadyBooked;
-        if($event->enable_car_parking && $parkingSlots > 0){
-            if ($parkingSlots <= $availableSlots) {
-                $parkingTotal = $parkingSlots * $parkingPricePerSlot;
-                $final_amount = $parkingTotal+$subtotal;
-            }
-        }
-        
-        $currency = Currency::symbolForEvent($event);
-
-        $response = [
-            'ticket_title' => $ticketType->title,
-            'ticket_price' => $currency . number_format($ticketType->ticket_price, 2),
-            'quantity' => $quantity,
-            'parking_price' => $currency.$parkingPricePerSlot,
-            'parking_slots' => $parkingSlots ?? 0,
-            'subtotal' => $currency . number_format($subtotal, 2),
-            'parking_total' => $currency . number_format($parkingTotal, 2),
-            'bulk_discount_applied' => false,
-            'coupon_applied' => false,
-            'total_amount' => $currency . number_format($final_amount, 2)
-        ];
-
-        /**
-         * ðŸ”´ BULK DISCOUNT CHECK (PRIORITY)
-         */
-        $bulkTier = null;
-
-        if ($ticketType->enable_bulk_discount) {
-            $bulkTier = BulkDiscount::where('event_id', $eventId)
-                ->where('ticket_type_id', $ticket_type_id)
-                ->where('min_order_qty', '<=', $quantity)
-                ->orderBy('min_order_qty', 'desc')
-                ->first();
-        }
-
-        if ($bulkTier) {
-            $bulkDiscountAmount = ($subtotal * $bulkTier->discount_percentage) / 100;
-
-            $response['bulk_discount_applied'] = true;
-            $response['bulk_discount_percentage'] = $bulkTier->discount_percentage;
-            $response['bulk_discount_amount'] = $currency . number_format($bulkDiscountAmount, 2);
-
-            // ðŸ”¥ Coupon is NOT allowed
-            $response['coupon_applied'] = false;
-            $response['coupon_blocked_reason'] = 'Bulk discount active';
-
-            $response['total_amount'] = $currency . number_format($final_amount - $bulkDiscountAmount, 2);
-
-            return response()->json($response);
-        }
-
-        /**
-         * ðŸŸ¢ COUPON CHECK (ONLY IF NO BULK DISCOUNT)
-         */
-        if ($couponCode) {
-            $coupon = DiscountCoupon::where('event_id', $eventId)
-                ->where('coupon_code', $couponCode)
-                ->first();
-
-            if ($coupon) {
-                $allowedTicketTypes = $coupon->ticket_type_ids;
-
-                $isValidForTicketType = empty($allowedTicketTypes)
-                    || in_array($ticket_type_id, $allowedTicketTypes)
-                    || in_array((string)$ticket_type_id, $allowedTicketTypes);
-
-                if ($isValidForTicketType) {
-                    $couponAmount = ($subtotal * $coupon->discount) / 100;
-
-                    $response['coupon_applied'] = true;
-                    $response['coupon_code'] = $coupon->coupon_code;
-                    $response['coupon_percentage'] = $coupon->discount;
-                    $response['coupon_amount'] = $currency . number_format($couponAmount, 2);
-
-                    $response['total_amount'] = $currency . number_format($final_amount - $couponAmount, 2);
-                }
-            }
-        }
-
-        return response()->json($response);
-    }
 public function store(Request $request)
 {
     $eventId = $request->event_id ?? session('active_event_id');
@@ -736,11 +677,10 @@ public function store(Request $request)
         'country_id'     => 'required|exists:countries,id',
         'state_id'       => 'required|exists:states,id',
         'selected_seats' => 'nullable|array',
-        'parking_slots'  => 'nullable',
-        'car_details'    => 'nullable|array',
         'service_items'  => 'nullable|array',
-        'service_items.*.id' => 'nullable|integer',
-        'service_items.*.quantity' => 'nullable|integer|min:0',
+        'service_items.*.id' => 'required|integer',
+        'service_items.*.quantity' => 'required|integer|min:0',
+        'service_items.*.field_values' => 'nullable|array',
         'age_group_items' => 'nullable|array',
         'age_group_items.*.id' => 'nullable|integer',
         'age_group_items.*.quantity' => 'nullable|integer|min:0',
@@ -798,7 +738,7 @@ public function store(Request $request)
         try {
             // Handle transaction exactly like the Web/Stripe controller
             $booking = DB::transaction(function () use ($request, $eventId, $selectedSeats) {
-                $billData = $this->buildBillData($request);
+                $billData = $this->buildBillData($request, true);
                 $couponApplied = $billData['coupon_applied'] && !$billData['bulk_discount_applied'];
                 $hasAppliedDiscount = $couponApplied || $billData['bulk_discount_applied'];
                 $resolvedQuantity = (int) ($billData['raw_quantity'] ?? $request->quantity);
@@ -883,7 +823,7 @@ public function store(Request $request)
                         continue;
                     }
 
-                    TicketCounterService::create([
+                    $bookingService = TicketCounterService::create([
                         'ticket_counter_id' => $newBooking->id,
                         'event_id' => $eventId,
                         'event_service_id' => $serviceItem['id'] ?? null,
@@ -893,30 +833,16 @@ public function store(Request $request)
                         'total_amount' => (float) ($serviceItem['total'] ?? ($serviceQuantity * (float) ($serviceItem['price'] ?? 0))),
                         'service_code' => 'SV-' . strtoupper(Str::random(10)),
                     ]);
+
+                    app(EventServiceFieldResponseService::class)->sync(
+                        $bookingService,
+                        $serviceItem['field_responses'] ?? []
+                    );
                 }
 
                 app(\App\Services\ServicePassService::class)->ensurePassesForBooking($newBooking);
 
-                // 4. Handle Parking
-                $parkingSlots = $request->parking_slots;
-                $parkingCount = is_array($parkingSlots) ? count($parkingSlots) : (int)$parkingSlots;
-                if ($parkingCount <= 0 && is_array($request->car_details)) {
-                    $parkingCount = count($request->car_details);
-                }
-
-                if ($parkingCount > 0) {
-                    for ($i = 0; $i < $parkingCount; $i++) {
-                        \App\Models\TicketParking::create([
-                            'ticket_counter_id' => $newBooking->id,
-                            'ticket_type_id'    => $request->ticket_type_id,
-                            'car_number'        => $request->car_details[$i] ?? 'Generic-' . ($i + 1),
-                            'parking_code'      => 'PK-' . strtoupper(Str::random(10)),
-                            'status'            => 'unused'
-                        ]);
-                    }
-                }
-
-                // 5. Sync Physical Seats
+                // 4. Sync Physical Seats
                 if (!empty($selectedSeats)) {
                     DB::table('ticket_type_seats')
                         ->where('ticket_type_id', $request->ticket_type_id)
@@ -937,7 +863,7 @@ public function store(Request $request)
             if ($booking) {
                 try {
                     // Ensure relationships are loaded before passing to the mailer
-                    $booking->load(['parkings', 'services', 'ticketType', 'event']);
+                    $booking->load(['services.fieldValues', 'ticketType', 'event']);
                     
                     $this->sendTicketEmail($booking); 
                     \Log::info('Mail success for booking: ' . $booking->booking_id);
@@ -952,6 +878,8 @@ public function store(Request $request)
                 'booking_id' => $booking->booking_id,
             ]);
 
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\RuntimeException $e) {
             \Log::warning('API Store validation error: ' . $e->getMessage());
             return response()->json([

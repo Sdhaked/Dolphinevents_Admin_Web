@@ -280,6 +280,24 @@ class ExpiredCheckoutHoldService
 
     private function deleteBookingChildren(TicketCounter $booking): void
     {
+        if (Schema::hasTable('ticket_counter_services')) {
+            $bookingServiceIds = DB::table('ticket_counter_services')
+                ->where('ticket_counter_id', $booking->id)
+                ->pluck('id');
+
+            if ($bookingServiceIds->isNotEmpty() && Schema::hasTable('ticket_counter_service_field_values')) {
+                DB::table('ticket_counter_service_field_values')
+                    ->whereIn('ticket_counter_service_id', $bookingServiceIds)
+                    ->delete();
+            }
+        }
+
+        if (Schema::hasTable('ticket_counter_service_passes')) {
+            DB::table('ticket_counter_service_passes')
+                ->where('ticket_counter_id', $booking->id)
+                ->delete();
+        }
+
         foreach ([
             'booked_tickets',
             'ticket_parkings',

@@ -22,9 +22,6 @@
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"
         integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous" defer></script>
 
-    <!-- Checkout JS -->
-    <script src="{{ asset('website/js/page-js/checkout.js') }}" defer></script>
-
     <!-- Animation JS CDN -->
     <script src="{{ asset('website/js/aos.js') }}" defer></script>
     <script src="{{ asset('website/js/custom.aos.js') }}" defer></script>
@@ -44,6 +41,69 @@
         .select-box select.is-invalid:focus {
             outline: none;
             box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.18);
+        }
+
+        .event-service-card {
+            border: 1px solid var(--color-border-100);
+            border-radius: 0.65rem;
+            overflow: hidden;
+        }
+
+        .event-service-card > .sub-ticket {
+            border: 0;
+            border-radius: 0;
+        }
+
+        .event-service-responses {
+            display: grid;
+            gap: 0.85rem;
+            padding: 0 1rem 1rem;
+        }
+
+        .event-service-response-unit {
+            display: grid;
+            gap: 0.8rem;
+            min-width: 0;
+            padding: 1rem;
+            border: 1px solid var(--color-border-100);
+            border-radius: 0.6rem;
+        }
+
+        .event-service-response-unit legend {
+            width: auto;
+            margin: 0;
+            padding: 0 0.35rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .event-service-field {
+            min-width: 0;
+        }
+
+        .event-service-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem 1rem;
+            margin-top: 0.35rem;
+        }
+
+        .event-service-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .event-service-field .invalid-feedback {
+            color: #dc3545;
+            font-size: 0.8rem;
+        }
+
+        .event-service-help {
+            display: block;
+            margin-top: 0.3rem;
+            color: var(--color-text-300, #667085);
+            font-size: 0.78rem;
         }
 
         .checkout-btn-spinner {
@@ -229,33 +289,6 @@
                             @endif
                             </div>
 
-                            {{-- Car slots --}}
-                            @if($event->enable_car_parking)
-                             <div class="car-slot">
-                                <div class="car-head">
-                                    <div>
-                                        <h2 class="text-prim">Book Parking</h2>
-                                        <p>{{ $event->currency_symbol }} {{ $event->car_slot_price}}/- (per Vehicle) [{{ $remainingSlots}} Slots Available]</p>
-                                    </div>
-                                    <div>
-                                        <button type="button" class="btn-md btn-prim hover-prim-outline"
-                                            id="car-slot-btn-js">
-                                            <i class="fa-solid fa-plus i-mr"></i> Add Vehicle
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="tag-box">
-                                    <div class="tag">Selected Slots: <span class="selected-slot">0</span>
-                                    </div>
-                                </div>
-
-                                <div class="car-slot-container">
-                                </div>
-                                <hr style="border-color: var(--color-border-100); margin-top: 1rem;">
-                            </div>
-                            @endif
-
                             @if(!empty($eventServices) && $eventServices->count())
                             <div>
                                 <div class="head-box-mini">
@@ -267,6 +300,7 @@
                                      <h6 class="hd-prim" style="text-transform: uppercase; color:  var(--my-primary);">Choose Services</h6>
                                     <div class="grid-1 gap-card">
                                         @foreach($eventServices as $service)
+                                            <div class="event-service-card" data-event-service="{{ $service->id }}">
                                                 <div class="sub-ticket">
                                                     <div>
                                                         <h6 class="ticket-name">{{ $service->name }}
@@ -280,13 +314,83 @@
                                                     </div>
                                                     <div class="select-box" style="min-width: 5rem;">
                                                         <i class="fa-solid fa-angle-down arrow-i"></i>
-                                                        <select class="event-service-qty sm" data-id="{{ $service->id }}" data-mandatory="{{ $service->is_mandatory ? 1 : 0 }}">
+                                                        <select class="event-service-qty sm" data-id="{{ $service->id }}" data-service-name="{{ $service->name }}" data-mandatory="{{ $service->is_mandatory ? 1 : 0 }}" aria-controls="event-service-responses-{{ $service->id }}">
                                                             @for($i = $service->is_mandatory ? 1 : 0; $i <= min((int) $service->max_buy_limit, 20); $i++)
                                                                 <option value="{{ $i }}">{{ $i }}</option>
                                                             @endfor
                                                         </select>
                                                     </div>
                                                 </div>
+                                                @if($service->is_reserved && $service->fields->isNotEmpty())
+                                                    <div id="event-service-responses-{{ $service->id }}" class="event-service-responses" data-service-response-container hidden></div>
+                                                    <template data-service-unit-template>
+                                                        <fieldset class="event-service-response-unit" data-service-unit>
+                                                            <legend data-service-unit-label>{{ $service->name }} details</legend>
+                                                            @foreach($service->fields as $field)
+                                                                @php
+                                                                    $htmlType = match ($field->field_type) {
+                                                                        'number' => 'number',
+                                                                        'email' => 'email',
+                                                                        'phone' => 'tel',
+                                                                        'date' => 'date',
+                                                                        'time' => 'time',
+                                                                        'datetime' => 'datetime-local',
+                                                                        default => $field->validation_type === 'url' ? 'url' : 'text',
+                                                                    };
+                                                                @endphp
+                                                                <div class="event-service-field" data-service-field data-field-id="{{ $field->id }}" data-field-type="{{ $field->field_type }}" data-error-message="{{ $field->error_message }}">
+                                                                    @if($field->field_type === 'checkbox')
+                                                                        <label class="event-service-option">
+                                                                            <input type="checkbox" data-service-field-control value="1" @required($field->is_required)>
+                                                                            <span>{{ $field->field_label }} @if($field->is_required)<span aria-hidden="true">*</span>@endif</span>
+                                                                        </label>
+                                                                    @elseif($field->field_type === 'radio')
+                                                                        <span data-service-field-label>{{ $field->field_label }} @if($field->is_required)<span aria-hidden="true">*</span>@endif</span>
+                                                                        <div class="event-service-options">
+                                                                            @foreach($field->options ?: [] as $optionIndex => $option)
+                                                                                <label class="event-service-option" data-service-option-label data-option-index="{{ $optionIndex }}">
+                                                                                    <input type="radio" data-service-field-control value="{{ $option }}" @required($field->is_required)>
+                                                                                    <span>{{ $option }}</span>
+                                                                                </label>
+                                                                            @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <label data-service-field-label>{{ $field->field_label }} @if($field->is_required)<span aria-hidden="true">*</span>@endif</label>
+                                                                        @if($field->field_type === 'textarea')
+                                                                            <textarea class="form-control" data-service-field-control rows="3" @required($field->is_required) @if($field->placeholder) placeholder="{{ $field->placeholder }}" @endif @if($field->max_length) maxlength="{{ $field->max_length }}" @endif></textarea>
+                                                                        @elseif($field->field_type === 'dropdown')
+                                                                            <div class="select-box">
+                                                                                <i class="fa-solid fa-angle-down arrow-i" aria-hidden="true"></i>
+                                                                                <select class="form-control" data-service-field-control @required($field->is_required)>
+                                                                                    <option value="">Select {{ $field->field_label }}</option>
+                                                                                    @foreach($field->options ?: [] as $option)
+                                                                                        <option value="{{ $option }}">{{ $option }}</option>
+                                                                                    @endforeach
+                                                                                </select>
+                                                                            </div>
+                                                                        @else
+                                                                            <input type="{{ $htmlType }}" class="form-control" data-service-field-control
+                                                                                @required($field->is_required)
+                                                                                @if($field->placeholder) placeholder="{{ $field->placeholder }}" @endif
+                                                                                @if($field->max_length) maxlength="{{ $field->max_length }}" @endif
+                                                                                @if($field->min_value !== null) min="{{ $field->min_value }}" @endif
+                                                                                @if($field->max_value !== null) max="{{ $field->max_value }}" @endif
+                                                                                @if($field->field_type === 'number' || $field->validation_type === 'number') step="any" @endif
+                                                                                @if($field->validation_type === 'phone' || $field->field_type === 'phone') inputmode="numeric" pattern="[0-9]{10}" @endif
+                                                                                @if($field->validation_type === 'vehicle_number') inputmode="text" pattern="[A-Za-z]{2}[0-9]{2}[A-Za-z]{1,3}[0-9]{4}" @endif
+                                                                                @if($field->validation_type === 'custom' && $field->validation_pattern) pattern="{{ $field->validation_pattern }}" @endif>
+                                                                        @endif
+                                                                    @endif
+                                                                    @if($field->help_text)
+                                                                        <small class="event-service-help">{{ $field->help_text }}</small>
+                                                                    @endif
+                                                                    <div class="invalid-feedback" role="alert"></div>
+                                                                </div>
+                                                            @endforeach
+                                                        </fieldset>
+                                                    </template>
+                                                @endif
+                                            </div>
                                         @endforeach
                                     </div>
                                 </div>
@@ -525,11 +629,127 @@ function collectAgeGroupItems() {
 
 function collectServiceItems() {
     return Array.from(document.querySelectorAll('.event-service-qty'))
-        .map((select) => ({
-            id: Number(select.dataset.id),
-            quantity: Number(select.value || 0),
-        }))
+        .map((select) => {
+            const item = {
+                id: Number(select.dataset.id),
+                quantity: Number(select.value || 0),
+            };
+            const card = select.closest('[data-event-service]');
+            const unitGroups = card?.querySelectorAll('[data-service-unit]') || [];
+
+            if (unitGroups.length) {
+                item.field_values = Array.from(unitGroups).map((unitGroup) => {
+                    const values = {};
+
+                    unitGroup.querySelectorAll('[data-service-field]').forEach((field) => {
+                        const fieldId = field.dataset.fieldId;
+                        const fieldType = field.dataset.fieldType;
+                        const controls = Array.from(field.querySelectorAll('[data-service-field-control]'));
+                        let value = null;
+
+                        if (fieldType === 'radio') {
+                            value = controls.find((control) => control.checked)?.value ?? null;
+                        } else if (fieldType === 'checkbox') {
+                            value = Boolean(controls[0]?.checked);
+                        } else {
+                            value = controls[0]?.value ?? null;
+                        }
+
+                        values[fieldId] = value;
+                    });
+
+                    return values;
+                });
+            }
+
+            return item;
+        })
         .filter((item) => item.id && item.quantity > 0);
+}
+
+function bindServiceFieldValidation(control) {
+    const eventName = ['SELECT', 'INPUT'].includes(control.tagName) && ['checkbox', 'radio'].includes(control.type)
+        ? 'change'
+        : 'input';
+
+    control.addEventListener(eventName, () => {
+        if (control.dataset.vehicleNumber === '1') {
+            control.value = control.value.toUpperCase().replace(/[\s-]+/g, '');
+        }
+
+        if (checkoutForm?.classList.contains('was-validated')) {
+            validateCheckoutField(control);
+        } else {
+            clearCheckoutFieldState(control);
+        }
+    });
+
+    control.addEventListener('blur', () => {
+        if (checkoutForm?.classList.contains('was-validated')) {
+            validateCheckoutField(control);
+        }
+    });
+}
+
+function configureServiceUnit(unitGroup, select, unitIndex) {
+    const serviceId = select.dataset.id;
+    const serviceName = select.dataset.serviceName || 'Service';
+    const unitNumber = unitIndex + 1;
+    unitGroup.dataset.unitIndex = String(unitIndex);
+    unitGroup.querySelector('[data-service-unit-label]').textContent = `${serviceName} #${unitNumber} details`;
+
+    unitGroup.querySelectorAll('[data-service-field]').forEach((field) => {
+        const fieldId = field.dataset.fieldId;
+        const controls = Array.from(field.querySelectorAll('[data-service-field-control]'));
+        const name = `service_${serviceId}_unit_${unitNumber}_field_${fieldId}`;
+
+        controls.forEach((control, optionIndex) => {
+            control.name = name;
+            control.id = `${name}_${optionIndex + 1}`;
+
+            if (field.querySelector('input[pattern*="A-Za-z"]') === control) {
+                control.dataset.vehicleNumber = '1';
+            }
+
+            bindServiceFieldValidation(control);
+        });
+
+        const fieldLabel = field.querySelector('[data-service-field-label]');
+        if (fieldLabel && controls[0]) {
+            fieldLabel.setAttribute('for', controls[0].id);
+        }
+
+        field.querySelectorAll('[data-service-option-label]').forEach((label, optionIndex) => {
+            if (controls[optionIndex]) {
+                label.setAttribute('for', controls[optionIndex].id);
+            }
+        });
+    });
+}
+
+function syncServiceFieldGroups(select) {
+    const card = select.closest('[data-event-service]');
+    const container = card?.querySelector('[data-service-response-container]');
+    const template = card?.querySelector('template[data-service-unit-template]');
+    if (!container || !template) return;
+
+    const quantity = Math.max(0, Number(select.value || 0));
+    const groups = Array.from(container.querySelectorAll('[data-service-unit]'));
+
+    groups.slice(quantity).forEach((group) => group.remove());
+
+    for (let unitIndex = groups.length; unitIndex < quantity; unitIndex += 1) {
+        const fragment = template.content.cloneNode(true);
+        const unitGroup = fragment.querySelector('[data-service-unit]');
+        configureServiceUnit(unitGroup, select, unitIndex);
+        container.appendChild(fragment);
+    }
+
+    container.hidden = quantity <= 0;
+}
+
+function initializeEventServiceFields() {
+    document.querySelectorAll('.event-service-qty').forEach(syncServiceFieldGroups);
 }
 
 function resolveCheckoutQuantity() {
@@ -574,8 +794,12 @@ function getCheckoutValidationMessage(field) {
         stateId: 'County is required.',
     };
 
+    const serviceField = field.closest('[data-service-field]');
+    const serviceLabel = serviceField?.querySelector('[data-service-field-label]')?.textContent
+        || serviceField?.querySelector('.event-service-option span')?.textContent;
+
     if (field.validity.valueMissing) {
-        return messages[field.id] || 'This field is required.';
+        return messages[field.id] || (serviceLabel ? `${serviceLabel.replace('*', '').trim()} is required.` : 'This field is required.');
     }
 
     if (field.id === 'ph') {
@@ -594,17 +818,23 @@ function getCheckoutValidationMessage(field) {
         return 'Please enter a valid email address.';
     }
 
-    return field.validationMessage || 'Please fill this field correctly.';
+    return serviceField?.dataset.errorMessage
+        || field.validationMessage
+        || 'Please fill this field correctly.';
 }
 
 function getCheckoutFeedbackElement(field) {
-    return document.querySelector(`[data-feedback-for="${field.id}"]`);
+    return field.closest('[data-service-field]')?.querySelector('.invalid-feedback')
+        || document.querySelector(`[data-feedback-for="${field.id}"]`);
 }
 
 function clearCheckoutFieldState(field) {
     if (!field) return;
 
     field.classList.remove('is-invalid');
+    field.closest('[data-service-field]')?.querySelectorAll('[data-service-field-control]').forEach((control) => {
+        control.classList.remove('is-invalid');
+    });
 
     const feedback = getCheckoutFeedbackElement(field);
     if (feedback) {
@@ -617,6 +847,9 @@ function showCheckoutFieldError(field, message) {
     if (!field) return;
 
     field.classList.add('is-invalid');
+    field.closest('[data-service-field]')?.querySelectorAll('[data-service-field-control]').forEach((control) => {
+        control.classList.add('is-invalid');
+    });
 
     const feedback = getCheckoutFeedbackElement(field);
     if (feedback) {
@@ -649,7 +882,13 @@ function validateCheckoutForm() {
 
     checkoutForm.classList.add('was-validated');
 
-    const fields = checkoutForm.querySelectorAll('#quantity, #name, #email, #ph, #countryId, #stateId');
+    const fields = [
+        ...checkoutForm.querySelectorAll('#quantity, #name, #email, #ph, #countryId, #stateId'),
+        ...Array.from(checkoutForm.querySelectorAll('[data-service-field]'))
+            .filter((field) => !field.closest('[data-service-response-container]')?.hidden)
+            .map((field) => field.querySelector('[data-service-field-control]'))
+            .filter(Boolean),
+    ];
     let firstInvalidField = null;
 
     fields.forEach((field) => {
@@ -907,15 +1146,6 @@ function startCheckout() {
     const qty = resolveCheckoutQuantity();
     setCheckoutLoading(true);
 
-    // Collect Car Registration Numbers
-    const carNumbers = [];
-    document.querySelectorAll(".car-slot-container input").forEach(input => {
-        if (input.value.trim() !== "") carNumbers.push(input.value.trim());
-    });
-
-    //Get parking slots
-    const activeSlotsCount = document.querySelectorAll('.car-slot-container .car-slot-item').length;
-
     const couponCode = appliedCoupon ? appliedCoupon.coupon_code : null;
 
     const payload = {
@@ -927,8 +1157,6 @@ function startCheckout() {
         state_id: document.getElementById('stateId').value,
         quantity: qty,
         coupon_code: couponCode,
-        parking_slots: activeSlotsCount || 0,
-        car_details: carNumbers,
         service_items: collectServiceItems(),
         age_group_items: collectAgeGroupItems()
     };
@@ -962,7 +1190,16 @@ function startCheckout() {
                          state_id: document.getElementById('stateId'),
                      };
 
-                     const targetField = fieldMap[field];
+                     let targetField = fieldMap[field];
+                     const serviceFieldMatch = field.match(/^service_items\.(\d+)\.field_values\.(\d+)\.(\d+)$/);
+                     if (!targetField && serviceFieldMatch) {
+                         const [, itemIndex, unitIndex, fieldId] = serviceFieldMatch;
+                         const serviceItem = payload.service_items[Number(itemIndex)];
+                         targetField = document.querySelector(
+                             `[data-event-service="${serviceItem?.id}"] [data-service-unit][data-unit-index="${unitIndex}"] [data-service-field][data-field-id="${fieldId}"] [data-service-field-control]`
+                         );
+                     }
+
                      if (targetField) {
                          showCheckoutFieldError(targetField, Array.isArray(messages) ? messages[0] : messages);
                      }
@@ -997,31 +1234,6 @@ function startCheckout() {
          }
      });
 }
-
-/* ===============================
-   Car Parking
-================================ */
-/* ======================================================
-   INTEGRATION SCRIPT (Parking to Billing & Checkout)
-   ====================================================== */
-/* ======================================================
-   PARKING & BILLING SYNC
-   ====================================================== */
-(function() {
-    // 1. Hook into slot changes to refresh the bill
-    document.addEventListener('click', (e) => {
-        if (e.target.closest("#car-slot-btn-js") || e.target.closest(".delete-slot")) {
-            // Small delay to allow your slotChecker to update ActiveSlots first
-
-            setTimeout(() => {
-                if (typeof calculateBill === "function") {
-                    calculateBill();
-                }
-            }, 100);
-        }
-    });
-
-})();
 
 /* ===============================
    QUANTITY
@@ -1112,6 +1324,7 @@ document.querySelectorAll('.age-group-qty, .event-service-qty').forEach((field) 
             return;
         }
 
+        syncServiceFieldGroups(field);
         checkBulkDiscount();
     });
 });
@@ -1262,22 +1475,11 @@ function calculateBill() {
         return;
     }
 
-    // Collect Car Registration Numbers
-    const carNumbers = [];
-    document.querySelectorAll(".car-slot-container input").forEach(input => {
-        if (input.value.trim() !== "") carNumbers.push(input.value.trim());
-    });
-
-    //Get parking slots
-    const activeSlotsCount = document.querySelectorAll('.car-slot-container .car-slot-item').length;
-
     const payload = {
         event_id: EVENT_ID,
         ticket_type_id: TICKET_TYPE_ID,
         quantity: qty,
         coupon_code: appliedCoupon?.coupon_code ?? null,
-        parking_slots: activeSlotsCount || 0,
-        car_details: carNumbers,
         service_items: collectServiceItems(),
         age_group_items: collectAgeGroupItems()
     };
@@ -1449,33 +1651,13 @@ function renderBill(d) {
                 </th>
                 <td>${d.subtotal}/-</td>
             </tr>
-            ${d.bulk_discount_applied ? `
-            <tr style="color: green;">
-                <th>Bulk Discount (${d.bulk_discount_percentage}%)</th>
-                <td>- ${d.bulk_discount_amount}/-</td>
-            </tr>` : ''}
-
-            ${d.coupon_applied ? `
-            <tr style="color: green;">
-                <th>Coupon: ${d.coupon_code} (${d.coupon_percentage}%)</th>
-                <td>- ${d.coupon_amount}/-</td>
-            </tr>` : ''}
         `;
     }
 
-    // Combine with the rest of the bill (Parking, Discounts, Total)
+    // Combine the ticket, dynamic services, discounts and total.
     document.querySelector('.bill').innerHTML = `
         <table>
             ${billingHtml}
-
-            ${d.parking_slots > 0 ? `
-            <tr>
-                <th colspan="1">
-                    <h6 style="color: var(--my-primary)">Parking Slot</h6>
-                    <p>${d.parking_price}/- <i class="fa-solid fa-xmark i-mr i-ml"></i> ${d.parking_slots} Slots</p>
-                </th>
-                <td>${d.parking_total}/-</td>
-            </tr>` : ''}
 
             ${Array.isArray(d.service_items) && d.service_items.length ? `
             <tr>
@@ -1530,6 +1712,7 @@ function renderBill(d) {
 /* ===============================
    INIT
 ================================ */
+initializeEventServiceFields();
 fetchAvailableQuantity();
 initializeLocationSelectors();
 initializeCheckoutValidation();

@@ -13,9 +13,6 @@
 
     <!----======== JS ======== -->
     @include('admin._partials.head.g-js-files')
-    
-    <script src="{{ asset('javascript/parking-form.js') }}" defer></script>
-
 @endsection
 
 @section('body')
@@ -190,7 +187,7 @@
                                 </div>
                             
                                 <div class="form-floating flex-grow-1">
-                                    <input type="text" class="form-control" id="phno" name="mobile_number" requiredinputmode="numeric" pattern="[0-9]{1,12}" maxlength="12" autocomplete="tel" />
+                                    <input type="text" class="form-control" id="phno" name="mobile_number" required inputmode="numeric" pattern="[0-9]{1,12}" maxlength="12" autocomplete="tel" />
                                     <label for="phno">Mobile Number</label>
                                 </div>
                             </div>
@@ -213,30 +210,6 @@
                                 </select>
                                 <label for="stateId">State</label>
                             </div>
-
-                            {{-- Dynamic Car Slots Section --}}
-                            @if($event->enable_car_parking)
-                             <div class="car-slots-section">
-                                <div class="car-header">
-                                    <div>
-                                        <h1 class="hd-md mb-1">Book Car Parking</h1>
-                                        <p class="">{{ $currency }}{{ number_format($event->car_slot_price, 2) }}/- (per slot) [{{ $remainingSlots ?? 0 }} Slots Available]</p>
-
-                                        <div class="car-tags-row text-white">
-                                            <span>Selected Slots: <b class="selected-slot">0</b></span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <button type="button" class="btn-xs btn-prim" id="car-slot-btn-js">
-                                            <i class="fa-solid fa-plus me-1"></i> Add Car Slot
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="car-slots-container">
-                                    {{-- Slots will be prepended here via JS --}}
-                                </div>
-                            </div>
-                            @endif
 
                             @include('admin.event-ticket._partials.additional-services')
 
@@ -269,11 +242,6 @@
                                     </div>
                                 </th>
                                 <td id="ticketPriceAmount">{{ $currency }}500/-</td>
-                            </tr>
-                            <tr id="parkingRow" style="display: none;">
-                                <td id="parkingDetails">
-                                    </td>
-                                <td id="parkingAmount"></td>
                             </tr>
                             <tr id="servicesRow" style="display: none;">
                                 <th>
@@ -370,6 +338,7 @@ function initializeEventListeners() {
     document.getElementById('ticketForm').addEventListener('submit', handleFormSubmit);
     document.querySelectorAll('.admin-event-service-qty').forEach((field) => {
         field.addEventListener('change', () => {
+            syncReservedServiceFields(field.closest('.admin-event-service-row'));
             if (currentTicketType && resolveTicketQuantity() > 0) {
                 calculateBill();
             }
@@ -629,12 +598,90 @@ function collectAgeGroupItems() {
 }
 
 function collectServiceItems() {
-    return Array.from(document.querySelectorAll('.admin-event-service-qty:not(:disabled)'))
-        .map((select) => ({
-            id: Number(select.dataset.id),
-            quantity: Number(select.value || 0),
-        }))
+    return Array.from(document.querySelectorAll('.admin-event-service-row'))
+        .map((row) => {
+            const select = row.querySelector('.admin-event-service-qty:not(:disabled)');
+            const quantity = Number(select?.value || 0);
+
+            return {
+                id: Number(select?.dataset.id || 0),
+                quantity,
+                field_values: collectReservedServiceFieldValues(row),
+            };
+        })
         .filter((item) => item.id && item.quantity > 0);
+}
+
+function collectReservedServiceFieldValues(row) {
+    return Array.from(row?.querySelectorAll('.admin-event-service-unit') || []).map((unit) => {
+        const values = {};
+
+        unit.querySelectorAll('.admin-event-service-field-group').forEach((group) => {
+            const fieldId = group.dataset.fieldId;
+            const fieldType = group.dataset.fieldType;
+            const controls = Array.from(group.querySelectorAll('.admin-event-service-field'));
+
+            if (fieldType === 'radio') {
+                values[fieldId] = controls.find((control) => control.checked)?.value || '';
+            } else if (fieldType === 'checkbox') {
+                values[fieldId] = controls[0]?.checked ? 1 : 0;
+            } else {
+                values[fieldId] = controls[0]?.value ?? '';
+            }
+        });
+
+        return values;
+    });
+}
+
+function syncReservedServiceFields(row) {
+    if (!row || row.dataset.reserved !== '1') return;
+
+    const container = row.querySelector('.admin-event-service-fields');
+    const template = row.querySelector('.admin-event-service-unit-template');
+    const select = row.querySelector('.admin-event-service-qty');
+    if (!container || !template || !select) return;
+
+    const existingValues = collectReservedServiceFieldValues(row);
+    const quantity = select.disabled ? 0 : Number(select.value || 0);
+    container.innerHTML = '';
+    container.style.display = quantity > 0 ? '' : 'none';
+
+    for (let unitIndex = 0; unitIndex < quantity; unitIndex++) {
+        const fragment = template.content.cloneNode(true);
+        const unit = fragment.querySelector('.admin-event-service-unit');
+        const title = fragment.querySelector('.admin-event-service-unit-title');
+        const serviceId = Number(select.dataset.id);
+        title.textContent = quantity > 1 ? `Details for unit ${unitIndex + 1}` : 'Service details';
+        unit.dataset.unitIndex = unitIndex;
+
+        unit.querySelectorAll('.admin-event-service-field-group').forEach((group) => {
+            const fieldId = group.dataset.fieldId;
+            const fieldType = group.dataset.fieldType;
+            const required = group.dataset.required === '1';
+            const controls = Array.from(group.querySelectorAll('.admin-event-service-field'));
+            const savedValue = existingValues[unitIndex]?.[fieldId];
+            const fieldName = `service_response_${serviceId}_${unitIndex}_${fieldId}`;
+
+            controls.forEach((control, optionIndex) => {
+                control.disabled = false;
+                control.required = required;
+                control.name = fieldType === 'radio' ? fieldName : '';
+                control.id = `${fieldName}_${optionIndex}`;
+
+                if (savedValue === undefined) return;
+                if (fieldType === 'radio') {
+                    control.checked = String(control.value) === String(savedValue);
+                } else if (fieldType === 'checkbox') {
+                    control.checked = Boolean(Number(savedValue));
+                } else {
+                    control.value = savedValue ?? '';
+                }
+            });
+        });
+
+        container.appendChild(fragment);
+    }
 }
 
 function serviceAppliesToCurrentTicket(row) {
@@ -659,6 +706,8 @@ function syncServiceFields() {
                 select.value = '1';
             }
         }
+
+        syncReservedServiceFields(row);
 
         hasVisibleService = hasVisibleService || Boolean(applies);
     });
@@ -891,14 +940,6 @@ function removeCoupon() {
 /* ---------------- BILL ---------------- */
 
 function calculateBill() {
-     // Collect Car Registration Numbers
-    const carNumbers = [];
-    document.querySelectorAll(".car-slots-container input").forEach(input => {
-        if (input.value.trim() !== "") carNumbers.push(input.value.trim());
-    });
-    //Get parking slots
-    const activeSlotsCount = document.querySelectorAll('.car-slots-container .car-slot-item').length;
-
     fetch(`${API_BASE}/calculate-bill`, {
         method: 'POST',
         headers: jsonHeaders(),
@@ -907,8 +948,6 @@ function calculateBill() {
             ticket_type_id: currentTicketType,
             quantity: resolveTicketQuantity(),
             coupon_code: appliedCoupon?.coupon_code || null,
-            parking_slots: activeSlotsCount || 0,
-            car_details: carNumbers,
             service_items: collectServiceItems(),
             age_group_items: collectAgeGroupItems()
         })
@@ -941,21 +980,7 @@ function updateBillDisplay(data) {
     }
     document.getElementById('ticketPriceAmount').textContent = `${data.subtotal}/-`;
 
-    // 2. Parking tickets
-    const parkingRow = document.getElementById('parkingRow');
-    if (parkingRow) {
-        if (data.parking_slots > 0) {
-            parkingRow.style.display = 'table-row';
-            document.getElementById('parkingDetails').innerHTML = 
-                `<span class="text-primary">Car Slot</span><br>
-                 ${data.parking_price}/- x ${data.parking_slots} Slots`;
-            document.getElementById('parkingAmount').textContent = `${data.parking_total}/-`;
-        } else {
-            parkingRow.style.display = 'none';
-        }
-    }
-
-    // 3. Additional Services
+    // 2. Additional Services
     const servicesRow = document.getElementById('servicesRow');
     if (servicesRow) {
         if (Array.isArray(data.service_items) && data.service_items.length) {
@@ -1035,25 +1060,6 @@ function updateBillDisplay(data) {
 
 
 
-/* ---------------- Parking Seat ---------------- */
-(function() {
-    // 1. Hook into slot changes to refresh the bill
-    document.addEventListener('click', (e) => {
-        if (e.target.closest("#car-slot-btn-js") || e.target.closest(".delete-slot")) {
-            // Small delay to allow your slotChecker to update ActiveSlots first
-
-            setTimeout(() => {
-                if (typeof calculateBill === "function") {
-                    calculateBill();
-                }
-            }, 100);
-        }
-    });
-
-})();
-
-
-
 /* ---------------- SUBMIT ---------------- */
 
 function handleFormSubmit(e) {
@@ -1105,11 +1111,12 @@ function handleFormSubmit(e) {
     collectServiceItems().forEach((item, index) => {
         formData.append(`service_items[${index}][id]`, item.id);
         formData.append(`service_items[${index}][quantity]`, item.quantity);
+        item.field_values.forEach((unitValues, unitIndex) => {
+            Object.entries(unitValues).forEach(([fieldId, value]) => {
+                formData.append(`service_items[${index}][field_values][${unitIndex}][${fieldId}]`, value);
+            });
+        });
     });
-    
-    //Parking slots
-    const activeSlotsCount = document.querySelectorAll('.car-slots-container .car-slot-item').length;
-    formData.append('parking_slots', activeSlotsCount);
     
     fetch(`${API_BASE}/purchase`, {
         method: 'POST',
@@ -1183,7 +1190,7 @@ function resetCoupon() {
 }
 
 function resetBill() {
-    ['ticketPriceRow','parkingRow','servicesRow','subtotalRow','bulkDiscountRow','couponAppliedRow','extraChargesRow','taxRow','totalAmountRow']
+    ['ticketPriceRow','servicesRow','subtotalRow','bulkDiscountRow','couponAppliedRow','extraChargesRow','taxRow','totalAmountRow']
         .forEach(id => document.getElementById(id).style.display = 'none');
 }
 

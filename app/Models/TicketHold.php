@@ -22,8 +22,6 @@ class TicketHold extends Model
         'coupon_code',
         'service_items',
         'age_group_items',
-        'parking_slots',
-        'car_details',
         'checkout_otp_hash',
         'checkout_otp_expires_at',
         'checkout_otp_resend_available_at',
@@ -41,14 +39,17 @@ class TicketHold extends Model
         'selected_seats' => 'array',
         'service_items' => 'array',
         'age_group_items' => 'array',
-        'parking_slots' => 'integer',
-        'car_details' => 'array',
         'expires_at' => 'datetime',
         'checkout_started_at' => 'datetime',
         'checkout_otp_expires_at' => 'datetime',
         'checkout_otp_resend_available_at' => 'datetime',
         'email_verified_at' => 'datetime',
         'payment_started_at' => 'datetime',
+    ];
+
+    protected $hidden = [
+        'parking_slots',
+        'car_details',
     ];
 
     // Optional relationships

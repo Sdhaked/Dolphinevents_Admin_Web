@@ -46,6 +46,9 @@
                         'service_code' => $passRow->service_code,
                         'unit' => $passRow->unit_number,
                         'quantity' => $quantity,
+                        'field_values' => $service->relationLoaded('fieldValues')
+                            ? $service->fieldValues->where('unit_number', $passRow->unit_number)->values()
+                            : collect(),
                     ]);
                 }
 
@@ -58,6 +61,9 @@
                     'service_code' => $quantity > 1 ? $baseCode . '-' . str_pad((string) $unit, 2, '0', STR_PAD_LEFT) : $baseCode,
                     'unit' => $unit,
                     'quantity' => $quantity,
+                    'field_values' => $service->relationLoaded('fieldValues')
+                        ? $service->fieldValues->where('unit_number', $unit)->values()
+                        : collect(),
                 ]);
             }
         }
@@ -138,6 +144,21 @@
                             <h6>Service Amount</h6>
                             <p>{{ $currency }}{{ number_format($price, 2) }}/-</p>
                         </div>
+
+                        @foreach($pass['field_values'] as $fieldValue)
+                            @php
+                                $displayValue = match (true) {
+                                    is_bool($fieldValue->value) => $fieldValue->value ? 'Yes' : 'No',
+                                    is_array($fieldValue->value) => implode(', ', $fieldValue->value),
+                                    $fieldValue->value === null || $fieldValue->value === '' => '-',
+                                    default => (string) $fieldValue->value,
+                                };
+                            @endphp
+                            <div class="details">
+                                <h6>{{ $fieldValue->field_label }}</h6>
+                                <p>{{ $displayValue }}</p>
+                            </div>
+                        @endforeach
 
                         <div class="details" style="margin-bottom: 0;">
                             <h6>Purchased By</h6>

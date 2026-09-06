@@ -28,25 +28,6 @@ handeleventtodate(); // initial call to set state on page load
 // ========> ONE DAY PLUS DATE LIMIT fun()
 eventFromdate?.addEventListener("change", handeleventtodate);
 
-// ========> CAR PARKING ENABLE DISABLE fun()
-const isParking = document.querySelector("#isParking");
-const parkkingSlots = document.querySelector("#parking-slots");
-const parkPrice = document.querySelector("#parking-price");
-
-// --> Check Parking enabled?
-const checkParkFun = () => {
-    if (isParking.checked) {
-        parkkingSlots.setAttribute("required", "true");
-        parkPrice.setAttribute("required", "true");
-    } else {
-        parkkingSlots.removeAttribute("required");
-        parkPrice.removeAttribute("required");
-    }
-};
-
-isParking.addEventListener("change", checkParkFun);
-checkParkFun(); // initial call
-
 // ========> SELL TICKET TILL
 const sellTillTimestemp = () => {
     let sellTill = null;

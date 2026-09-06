@@ -23,13 +23,10 @@ class Event extends Model
         'type',
         'currency_id',
         'is_featured',
-        'enable_car_parking',
         'enable_voting',
         'voting_title',
         'voting_btn_title',
         'voting_des',
-        'car_parking_slots',
-        'car_slot_price',
         'featured_video',
         'thumbnail',
         'event_pdf_sponser_image',
@@ -52,9 +49,18 @@ class Event extends Model
         'status'
     ];
 
+    /**
+     * Legacy static-parking columns remain in the database so old installations
+     * can migrate safely, but they are no longer part of the public event model.
+     */
+    protected $hidden = [
+        'enable_car_parking',
+        'car_parking_slots',
+        'car_slot_price',
+    ];
+
     protected $casts = [
         'is_featured' => 'boolean',
-        'enable_car_parking' => 'boolean',
         'enable_voting' => 'boolean',
         'from_date' => 'date',
         'to_date' => 'date',

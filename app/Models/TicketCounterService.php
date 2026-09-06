@@ -39,4 +39,11 @@ class TicketCounterService extends Model
     {
         return $this->hasMany(TicketCounterServicePass::class, 'ticket_counter_service_id');
     }
+
+    public function fieldValues(): HasMany
+    {
+        return $this->hasMany(TicketCounterServiceFieldValue::class, 'ticket_counter_service_id')
+            ->orderBy('unit_number')
+            ->orderBy('id');
+    }
 }

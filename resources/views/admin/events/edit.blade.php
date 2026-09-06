@@ -274,34 +274,6 @@
                         </div>
                     </div>
 
-                <div class="style-box">
-                    <div>
-                        <button type="button" class="check-btn">
-                            <input class="form-check-input" type="checkbox" id="isParking" name="enable_car_parking"
-                                id="enable_car_parking" {{ $event?->enable_car_parking ? 'checked' : '' }}>
-                            <label for="isParking"> Enable Car Parking</label>
-                        </button>
-                    </div>
-                    <div class="grid-2 grid-sm-1 gap-card mt-4">
-                        <!-- Total Parking Slots-->
-                        <div class="form-floating">
-                            <input type="number" name="car_parking_slots" value="{{ old('car_parking_slots', $event?->car_parking_slots ?? '') }}" class="form-control" id="parking-slots"
-                                oninput="setMinMax({ min: 1, ele: event })">
-                            <label for="parking-slots">Total Parking Slots (QTY)*</label>
-                        </div>
-
-                        <!-- Parking Price -->
-                        <div class="input-group mb-3">
-                            <span class="input-group-text" id="basic-addon1">{{ $event?->currency_symbol }}</span>
-                            <div class="form-floating flex-grow-1">
-                                <input type="number" name="car_slot_price" value="{{ old('car_slot_price', $event?->car_slot_price ?? '') }}" class="form-control" id="parking-price"
-                                    oninput="setMinMax({ min: 0, ele: event })">
-                                <label for="parking-price">Price Per Slot*</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 @php
                     $oldInput = session()->getOldInput();
                     $votingEnabled = !empty($oldInput)
@@ -400,7 +372,7 @@
                      <ul class="small mb-3 text-200">
                          <li>All ticket types and bookings</li>
                          <li>All ticket checkers and history</li>
-                         <li>All parking records</li>
+                         <li>All additional service bookings</li>
                          <li>All bulk discounts and coupons</li>
                          <li>All sponsors and gallery images</li>
                          <li>All information sliders</li>

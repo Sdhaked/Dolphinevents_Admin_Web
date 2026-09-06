@@ -79,34 +79,6 @@
   margin-top: 2.8rem;
 }
 
-/* ========= Car Slots */
-.car-slots-section {
-  border-top: 1px solid var(--color-border-100);
-  margin-top: 2rem;
-  padding-top: 1rem;
-}
-.car-slots-section .car-header {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--gap-card);
-  flex-wrap: wrap;
-  margin-bottom: 2rem;
-}
-
-.car-slots-section .car-slots-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--gap-card);
-}
-
-.car-slots-section .car-slots-container .car-slot-item {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-card);
-}
-
-
-
 /* =========================
         VOTE CARD UI
 ========================= */

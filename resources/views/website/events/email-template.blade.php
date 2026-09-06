@@ -169,18 +169,15 @@
             $currency = $event?->currency_symbol ?? \App\Models\Currency::symbolForEvent($booking->event ?? null);
             $ticketPrice = (float) ($ticketType?->ticket_price ?? $booking->ticketType?->ticket_price ?? 0);
             $ticketQuantity = (int) ($booking->qty ?? 0);
-            $parkingCount = $booking->parkings?->count() ?? 0;
-            $parkingPrice = (float) ($event?->car_slot_price ?? 0);
             $ageGroupRows = $booking->ageGroups ?? collect();
             $serviceRows = $booking->services ?? collect();
             $subtotal = $ageGroupRows->count() > 0
                 ? (float) $ageGroupRows->sum('total_amount')
                 : $ticketPrice * $ticketQuantity;
             $serviceTotal = (float) $serviceRows->sum('total_amount');
-            $parkingTotal = $parkingCount * $parkingPrice;
             $discountAmount = (float) ($booking->coupon_amount ?? 0);
             $discountedTickets = max(0, $subtotal - $discountAmount);
-            $taxableBasis = $discountedTickets + $serviceTotal + $parkingTotal;
+            $taxableBasis = $discountedTickets + $serviceTotal;
             $taxAmount = 0;
             $extraChargesAmount = 0;
 
@@ -426,18 +423,6 @@
                         </td>
                     </tr>
                     @endforeach
-
-                    {{-- Car Parking Summary --}}
-                    @if($parkingCount > 0)
-                    <tr>
-                        <td class="bill-total" colspan="3">
-                            Car Parking ({{ $parkingCount }} {{ Str::plural('Slot', $parkingCount) }})
-                        </td>
-                        <td class="bill-total" style="text-align: right;">
-                            {{ $currency }}{{ number_format($parkingTotal, 2) }}
-                        </td>
-                    </tr>
-                    @endif
 
                     {{-- Tax Row --}}
                     @if($ticketType->enable_tax && $taxAmount > 0)

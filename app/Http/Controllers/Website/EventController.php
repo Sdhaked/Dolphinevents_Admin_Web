@@ -34,6 +34,8 @@ use Stripe\Stripe;
 use Stripe\Checkout\Session;
 
 use App\Services\TicketPdfService;
+use App\Services\EventServiceFieldResponseService;
+use Illuminate\Validation\ValidationException;
 
 
 class EventController extends Controller
@@ -213,8 +215,6 @@ class EventController extends Controller
             'coupon_code' => $booking->coupon_code ?: $hold->coupon_code,
             'service_items' => $hold->service_items ?? [],
             'age_group_items' => $hold->age_group_items ?? [],
-            'parking_slots' => $hold->parking_slots ?? 0,
-            'car_details' => $hold->car_details ?? [],
         ];
     }
 
@@ -1054,15 +1054,6 @@ class EventController extends Controller
             })->values();
         }
 
-        // Count how many parking tickets have already been issued for this event
-        $bookedSlots = \App\Models\TicketParking::whereHas('booking', function($query) use ($event) {
-            $query->where('event_id', $event->id);
-        })->count();
-
-        // Calculate remaining slots
-        $remainingSlots = max(0, $event->car_parking_slots - $bookedSlots);
-
-
         $checkout = [
             'event_id'       => $hold->event_id,
             'ticket_type_id' => $hold->ticket_type_id,
@@ -1073,7 +1064,8 @@ class EventController extends Controller
         ];
 
         $countries = Country::orderBy('name')->get(['id', 'name']);
-        $eventServices = EventService::where('event_id', $event->id)
+        $eventServices = EventService::with('fields')
+            ->where('event_id', $event->id)
             ->where('status', true)
             ->get()
             ->filter(fn (EventService $service) => $service->isApplicableToTicketType($ticketType->id))
@@ -1082,7 +1074,7 @@ class EventController extends Controller
 
         return view(
             'website.events.checkout',
-            compact('event', 'ticketType', 'checkout', 'slabs', 'remainingSlots', 'countries', 'eventServices', 'ageGroups')
+            compact('event', 'ticketType', 'checkout', 'slabs', 'countries', 'eventServices', 'ageGroups')
         );
     }
 
@@ -1107,11 +1099,11 @@ class EventController extends Controller
             'state_id' => 'required|exists:states,id',
             'quantity' => 'required|integer|min:1|max:20',
             'coupon_code' => 'nullable|string',
-            'parking_slots' => 'nullable|integer|min:0',
-            'car_details' => 'nullable|array',
             'service_items' => 'nullable|array',
-            'service_items.*.id' => 'nullable|integer',
+            'service_items.*.id' => 'nullable|integer|distinct',
             'service_items.*.quantity' => 'nullable|integer|min:0',
+            'service_items.*.field_values' => 'nullable|array',
+            'service_items.*.field_values.*' => 'nullable|array',
             'age_group_items' => 'nullable|array',
             'age_group_items.*.id' => 'nullable|integer',
             'age_group_items.*.quantity' => 'nullable|integer|min:0',
@@ -1139,11 +1131,6 @@ class EventController extends Controller
                     throw new \RuntimeException('Checkout session expired. Please start again.');
                 }
 
-                $ticketType = TicketType::with(['bulkDiscounts', 'ageGroups'])->findOrFail($hold->ticket_type_id);
-                $event = Event::findOrFail($ticketType->event_id);
-                $quote = $this->prepareCheckoutQuote($event, $ticketType, $hold, $request->all());
-                $selectedSeats = $this->normalizeSelectedSeats($hold->selected_seats);
-
                 $booking = null;
                 if ($hold->pending_ticket_counter_id) {
                     $booking = TicketCounter::whereKey($hold->pending_ticket_counter_id)
@@ -1154,6 +1141,17 @@ class EventController extends Controller
                 if ($booking && $booking->payment_status === 'paid' && $booking->booking_status === TicketCounter::STATUS_CONFIRMED) {
                     return $booking;
                 }
+
+                $ticketType = TicketType::with(['bulkDiscounts', 'ageGroups'])->findOrFail($hold->ticket_type_id);
+                $event = Event::findOrFail($ticketType->event_id);
+                $quote = $this->prepareCheckoutQuote(
+                    $event,
+                    $ticketType,
+                    $hold,
+                    $request->all(),
+                    $booking?->id
+                );
+                $selectedSeats = $this->normalizeSelectedSeats($hold->selected_seats);
 
                 $bookingPayload = [
                     'event_id' => $hold->event_id,
@@ -1206,8 +1204,6 @@ class EventController extends Controller
                     'coupon_code' => $quote['coupon_code'],
                     'service_items' => $quote['service_items'],
                     'age_group_items' => $quote['age_group_items'],
-                    'parking_slots' => $quote['parking_slots'],
-                    'car_details' => $quote['car_details'],
                     'total_amount' => $quote['final_amount'],
                     'email_verified_at' => null,
                     'payment_started_at' => null,
@@ -1248,6 +1244,11 @@ class EventController extends Controller
                 'url' => route('website.events.checkout.prepay.verify', $booking->booking_id),
                 'message' => 'Please verify your email to continue.',
             ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\RuntimeException $e) {
             $status = str_contains($e->getMessage(), 'expired') ? 410 : 422;
 
@@ -1346,16 +1347,36 @@ class EventController extends Controller
         }
 
         $serviceItems = [];
-        $requestedServices = collect($input['service_items'] ?? [])
-            ->mapWithKeys(fn ($item) => [(int) ($item['id'] ?? 0) => max(0, (int) ($item['quantity'] ?? 0))]);
+        $requestedServices = collect($input['service_items'] ?? [])->values();
+        $serviceQuery = EventService::with('fields')
+            ->where('event_id', $event->id)
+            ->where('status', true);
 
-        $services = EventService::where('event_id', $event->id)
-            ->where('status', true)
-            ->get()
+        if (DB::transactionLevel() > 0) {
+            $serviceQuery->lockForUpdate();
+        }
+
+        $services = $serviceQuery->get()
             ->filter(fn (EventService $service) => $service->isApplicableToTicketType($ticketType->id));
 
+        $servicesById = $services->keyBy('id');
+        foreach ($requestedServices as $requestIndex => $requestedService) {
+            $requestedId = (int) ($requestedService['id'] ?? 0);
+            $requestedQuantity = max(0, (int) ($requestedService['quantity'] ?? 0));
+
+            if ($requestedQuantity > 0 && !$servicesById->has($requestedId)) {
+                throw ValidationException::withMessages([
+                    "service_items.{$requestIndex}.id" => 'The selected event service is not available for this ticket.',
+                ]);
+            }
+        }
+
         foreach ($services as $service) {
-            $requestedQuantity = (int) ($requestedServices[$service->id] ?? 0);
+            $requestIndex = $requestedServices->search(
+                fn ($item) => (int) ($item['id'] ?? 0) === (int) $service->id
+            );
+            $requestedService = $requestIndex === false ? [] : ($requestedServices[$requestIndex] ?? []);
+            $requestedQuantity = max(0, (int) ($requestedService['quantity'] ?? 0));
 
             if ($service->is_mandatory) {
                 $requestedQuantity = max(1, $requestedQuantity);
@@ -1381,11 +1402,21 @@ class EventController extends Controller
                     })
                     ->sum('quantity');
 
-                $available = max(0, (int) $service->available_quantity - (int) $sold);
+                $activeHeld = $this->activeHeldServiceQuantity($hold, $service->id);
+                $available = max(0, (int) $service->available_quantity - (int) $sold - $activeHeld);
                 if ($requestedQuantity > $available) {
                     throw new \RuntimeException("Only {$available} {$service->name} services remaining.");
                 }
             }
+
+            $responsePrefix = $requestIndex === false ? 'service_items' : "service_items.{$requestIndex}";
+            $fieldResponses = app(EventServiceFieldResponseService::class)->validateAndNormalize(
+                $service,
+                $requestedQuantity,
+                $requestedService['field_values'] ?? [],
+                $responsePrefix,
+                strict: true
+            );
 
             $serviceItems[] = [
                 'id' => $service->id,
@@ -1393,36 +1424,12 @@ class EventController extends Controller
                 'quantity' => $requestedQuantity,
                 'price' => (float) $service->price,
                 'total' => round($requestedQuantity * (float) $service->price, 2),
+                'field_values' => $this->serviceFieldValuesFromResponses($fieldResponses),
+                'field_responses' => $fieldResponses,
             ];
         }
 
         $serviceTotal = array_sum(array_column($serviceItems, 'total'));
-        $parkingSlots = max(0, (int) ($input['parking_slots'] ?? 0));
-        $carDetails = $this->normalizeCarDetails($input['car_details'] ?? []);
-        $parkingTotal = 0;
-
-        if (!$event->enable_car_parking && $parkingSlots > 0) {
-            throw new \RuntimeException('Parking is not available for this event.');
-        }
-
-        if ($event->enable_car_parking && $parkingSlots > 0) {
-            $alreadyBooked = \App\Models\TicketParking::whereHas('booking', function ($query) use ($event) {
-                $query->where('event_id', $event->id);
-            })->count();
-
-            $activeHeldSlots = TicketHold::where('event_id', $event->id)
-                ->where('token', '!=', $hold->token)
-                ->where('expires_at', '>', now())
-                ->sum('parking_slots');
-
-            $availableSlots = max(0, (int) $event->car_parking_slots - (int) $alreadyBooked - (int) $activeHeldSlots);
-
-            if ($parkingSlots > $availableSlots) {
-                throw new \RuntimeException("Only {$availableSlots} parking slots remaining.");
-            }
-
-            $parkingTotal = $parkingSlots * (float) ($event->car_slot_price ?? 0);
-        }
 
         $discountPercentage = 0;
         $discountAmount = 0;
@@ -1460,7 +1467,7 @@ class EventController extends Controller
         }
 
         $ticketTotal = max(0, round($ticketSubtotal - $discountAmount, 2));
-        $taxableBasis = $ticketTotal + $serviceTotal + $parkingTotal;
+        $taxableBasis = $ticketTotal + $serviceTotal;
         $taxAmount = 0;
 
         if ($ticketType->enable_tax && (float) $ticketType->tax_value > 0) {
@@ -1484,9 +1491,6 @@ class EventController extends Controller
             'service_items' => $serviceItems,
             'service_total' => round($serviceTotal, 2),
             'age_group_items' => $ageGroupItems,
-            'parking_slots' => $parkingSlots,
-            'parking_total' => round($parkingTotal, 2),
-            'car_details' => $carDetails,
             'tax_amount' => round($taxAmount, 2),
             'extra_charges_amount' => round($extraChargesAmount, 2),
             'final_amount' => round($taxableBasis + $taxAmount + $extraChargesAmount, 2),
@@ -1510,20 +1514,39 @@ class EventController extends Controller
         return array_values(array_unique(array_filter($selectedSeats, fn ($seatId) => filled($seatId))));
     }
 
-    private function normalizeCarDetails($carDetails): array
+    private function activeHeldServiceQuantity(TicketHold $currentHold, int $serviceId): int
     {
-        if (is_string($carDetails)) {
-            $carDetails = json_decode($carDetails, true) ?? [];
+        return (int) TicketHold::where('event_id', $currentHold->event_id)
+            ->whereKeyNot($currentHold->id)
+            ->where('expires_at', '>', now())
+            ->get(['service_items'])
+            ->sum(function (TicketHold $hold) use ($serviceId) {
+                $items = is_array($hold->service_items)
+                    ? $hold->service_items
+                    : (json_decode((string) $hold->service_items, true) ?: []);
+
+                return collect($items)
+                    ->filter(fn ($item) => (int) ($item['id'] ?? 0) === $serviceId)
+                    ->sum(fn ($item) => max(0, (int) ($item['quantity'] ?? 0)));
+            });
+    }
+
+    private function serviceFieldValuesFromResponses(array $responses): array
+    {
+        $values = [];
+
+        foreach ($responses as $response) {
+            $unitIndex = max(0, (int) ($response['unit_number'] ?? 1) - 1);
+            $fieldId = (int) ($response['event_service_field_id'] ?? 0);
+
+            if ($fieldId > 0) {
+                $values[$unitIndex][(string) $fieldId] = $response['value'] ?? null;
+            }
         }
 
-        if (!is_array($carDetails)) {
-            return [];
-        }
+        ksort($values);
 
-        return array_values(array_filter(array_map(
-            fn ($number) => trim((string) $number),
-            $carDetails
-        )));
+        return array_values($values);
     }
 
     private function normalizeAgeGroupItems($ageGroupItems): array
@@ -1614,285 +1637,7 @@ class EventController extends Controller
     // Stripe
     public function createStripeCheckout(Request $request)
     {
-    return $this->startPrePaymentCheckout($request);
-
-    $request->validate([
-        'token' => 'required|exists:ticket_holds,token',
-        'name'  => 'required|string|max:255',
-        'email' => 'required|email|max:255',
-        'phone_prefix' => 'required|string|max:20',
-        'phone' => ['required', 'regex:/^[0-9]{5,12}$/'],
-        'country_id' => 'required|exists:countries,id',
-        'state_id' => 'required|exists:states,id',
-        'quantity' => 'required|integer|min:1',
-        'coupon_code' => 'nullable|string',
-        'parking_slots' => 'nullable|integer|min:0',
-        'car_details' => 'nullable|array',
-    ], [
-        'phone.required' => 'Phone number is required.',
-        'phone.regex' => 'Phone number must be 5 to 12 digits.',
-    ]);
-
-    $stateBelongsToCountry = State::where('id', $request->state_id)
-        ->where('country_id', $request->country_id)
-        ->exists();
-
-    if (!$stateBelongsToCountry) {
-        return response()->json(['message' => 'Selected state does not belong to the selected country.'], 422);
-    }
-
-    $hold = TicketHold::where('token', $request->token)->first();
-
-    if (!$hold || $hold->expires_at <= now()) {
-        return response()->json(['message' => 'Checkout session expired. Please start again.'], 410);
-    }
-
-    $ticketType = TicketType::findOrFail($hold->ticket_type_id);
-    $event = Event::findOrFail($ticketType->event_id);
-
-    // --- INITIALIZE VARIABLES ---
-    $parkingPricePerSlot = (float) $event->car_slot_price;
-    $parkingTotal = 0; 
-    $discountPercentage = 0;
-    $appliedCouponCode = null;
-
-    // 1. Calculate Ticket Subtotal
-    $baseAmount = (float) $ticketType->ticket_price * (int) $request->quantity;
-
-    // 2. Calculate Parking (Logic remains same, but safer)
-    $parkingSlots = (int) $request->parking_slots;
-    $alreadyBooked = \App\Models\TicketParking::whereHas('booking', function($q) use ($event) {
-        $q->where('event_id', $event->id);
-    })->count();
-
-    $availableSlots = (int) $event->car_parking_slots - $alreadyBooked;
-
-    if (!$event->enable_car_parking && $parkingSlots > 0) {
-        return response()->json(['message' => 'Parking is not available for this event.'], 422);
-    }
-
-    if ($event->enable_car_parking && $parkingSlots > 0) {
-        if ($parkingSlots <= $availableSlots) {
-            $parkingTotal = $parkingSlots * $parkingPricePerSlot;
-        } else {
-            return response()->json(['message' => "Only $availableSlots parking slots remaining."], 422);
-        }
-    }
-
-    // 3. Handle Discounts (Bulk vs Coupon)
-    $bulk = null;
-    if ($ticketType->enable_bulk_discount) {
-        $bulk = $ticketType->bulkDiscounts()
-            ->where('min_order_qty', '<=', (int) $hold->quantity)
-            ->orderByDesc('min_order_qty')
-            ->first();
-    }
-
-    if ($bulk) {
-        $discountPercentage = (float) $bulk->discount_percentage;
-    } elseif ($request->coupon_code) {
-        $coupon = \App\Models\DiscountCoupon::where('coupon_code', $request->coupon_code)
-            ->where('event_id', $hold->event_id)
-            ->first();
-
-        if ($coupon && !empty($coupon->ticket_type_ids) && in_array($hold->ticket_type_id, $coupon->ticket_type_ids)) {
-            $discountPercentage = (float) $coupon->discount;
-            $appliedCouponCode = $coupon->coupon_code;
-        }
-    }
-
-    // 4. Perform Final Math
-    $discountAmount = ($baseAmount * $discountPercentage) / 100;
-    $taxableBasis = max(0, round(($baseAmount - $discountAmount) + $parkingTotal, 2));
-
-    // --- New: Tax and Extra Charges Calculation ---
-    $taxAmount = 0;
-    if ($ticketType->enable_tax && $ticketType->tax_value > 0) {
-        // Calculate tax based on the percentage defined in settings
-        $taxAmount = ($taxableBasis * $ticketType->tax_value) / 100;
-    }
-
-    $extraChargesAmount = 0;
-    if ($ticketType->enable_extra_charges && $ticketType->extra_charges_value > 0) {
-        // Calculate extra charges based on the percentage defined in settings
-        $extraChargesAmount = ($taxableBasis * $ticketType->extra_charges_value) / 100;
-    }
-
-    // This is the final amount to be sent to the Stripe 'amount' field
-    $finalAmount = round($taxableBasis + $taxAmount + $extraChargesAmount, 2);
-   
-    Log::info('Checkout Calculation Debug:', [
-    'ticket_price'      => $ticketType->ticket_price,
-    'quantity'          => $hold->quantity,
-    'base_amount'       => $baseAmount,
-    'parking_price'     => $parkingPricePerSlot,
-    'coupon'            => $appliedCouponCode,
-    'discount_percent'  => $discountPercentage,
-    'discount_amount'   => $discountAmount,
-    'parking_total'     => $parkingTotal,
-    'final_amount'      => $finalAmount,
-]);
-
-    // Keep enough information on the temporary hold to show an abandoned
-    // checkout in the admin Failed Tickets screen after the hold expires.
-    $hold->update([
-        'name' => $request->name,
-        'email' => $request->email,
-        'phone_prefix' => $request->phone_prefix,
-        'mobile_number' => $request->phone,
-        'country_id' => $request->country_id,
-        'state_id' => $request->state_id,
-        'coupon_code' => $appliedCouponCode,
-        'total_amount' => $finalAmount,
-        'checkout_started_at' => now(),
-    ]);
-
-    $currencyCode = Currency::codeForEvent($event);
-
-    if ($finalAmount <= 0) {
-        try {
-            $booking = DB::transaction(function () use ($request) {
-                $lockedHold = TicketHold::where('token', $request->token)
-                    ->where('expires_at', '>', now())
-                    ->lockForUpdate()
-                    ->first();
-
-                if (!$lockedHold) {
-                    throw new \RuntimeException('Checkout session expired. Please start again.');
-                }
-
-                return $this->completeCheckoutBooking($lockedHold, [
-                    'quantity' => (int) $request->quantity,
-                    'name' => $request->name,
-                    'email' => $request->email,
-                    'phone_prefix' => $request->phone_prefix,
-                    'phone' => $request->phone,
-                    'country_id' => $request->country_id,
-                    'state_id' => $request->state_id,
-                    'coupon_code' => $appliedCouponCode,
-                    'parking_slots' => (int) $request->parking_slots,
-                    'car_details' => $request->car_details ?? [],
-                    'currency' => Currency::codeForEvent($lockedHold->event),
-                    'payment_status' => 'paid',
-                    'payment_method' => 'free',
-                    'refund_status' => TicketCounter::REFUND_NOT_REQUIRED,
-                ]);
-            });
-
-            $this->rememberCheckoutAccess($booking);
-
-            try {
-                $this->sendCheckoutOtpForBooking($booking);
-            } catch (\Throwable $e) {
-                $booking->forceFill(['checkout_otp_resend_available_at' => null])->save();
-
-                Log::error('Checkout OTP email failed after free booking', [
-                    'booking_id' => $booking?->booking_id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            return response()->json([
-                'url' => route('website.events.checkout.verify', $booking->booking_id),
-                'message' => 'Booking created successfully. Please verify your email.',
-            ]);
-        } catch (\RuntimeException $e) {
-            $status = str_contains($e->getMessage(), 'expired') ? 410 : 422;
-
-            return response()->json(['message' => $e->getMessage()], $status);
-        } catch (\Throwable $e) {
-            Log::error('Free checkout booking failed', [
-                'token' => $request->token,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json(['message' => 'Unable to complete booking right now. Please try again.'], 500);
-        }
-    }
-
-    // ISO currency code for Stripe checkout.
-    Stripe::setApiKey(config('services.stripe.secret'));
-
-    $paymentTransaction = PaymentTransaction::create([
-        'event_id' => $hold->event_id,
-        'ticket_type_id' => $hold->ticket_type_id,
-        'hold_token' => $hold->token,
-        'gateway' => 'stripe',
-        'status' => PaymentTransaction::STATUS_INITIATED,
-        'currency' => strtoupper($currencyCode),
-        'amount' => $finalAmount,
-        'quantity' => (int) $request->quantity,
-        'selected_seats' => $hold->selected_seats,
-        'parking_slots' => (int) $request->parking_slots,
-        'car_details' => $request->car_details ?? [],
-        'coupon_code' => $appliedCouponCode,
-        'customer_name' => $request->name,
-        'customer_email' => $request->email,
-        'phone_prefix' => $request->phone_prefix,
-        'mobile_number' => $request->phone,
-        'country_id' => $request->country_id,
-        'state_id' => $request->state_id,
-        'initiated_at' => now(),
-    ]);
-
-    try {
-    $session = Session::create([
-        'mode' => 'payment',
-        'payment_method_types' => ['card'],
-        'line_items' => [[
-            'price_data' => [
-                'currency' => $currencyCode,
-                'unit_amount' => (int) ($finalAmount * 100),
-                'product_data' => ['name' => $ticketType->title . ($request->parking_slots > 0 ? " + Parking" : "")],
-            ],
-            'quantity' => 1,
-        ]],
-        'currency' => $currencyCode,
-        'success_url' => route('website.events.checkout.stripe.success', ['paymentTransaction' => $paymentTransaction->id]),
-        'cancel_url'  => route('website.events.checkout.stripe.cancel', ['paymentTransaction' => $paymentTransaction->id]),
-        'metadata' => [
-            'payment_transaction_id' => (string) $paymentTransaction->id,
-            'name'        => $request->name,
-            'email'       => $request->email,
-            'phone_prefix' => $request->phone_prefix,
-            'phone'       => $request->phone,
-            'country_id'  => $request->country_id,
-            'state_id'    => $request->state_id,
-            'quantity'    => $request->quantity,
-            'hold_token'  => $hold->token,
-            'selected_seats' => $hold->selected_seats ? json_encode($hold->selected_seats) : null,
-            'coupon_code' => $appliedCouponCode,
-            'parking_slots' => $request->parking_slots,
-            'car_details'   => json_encode($request->car_details),
-            'event_id' => $hold->event_id,
-            'ticket_type_id' => $hold->ticket_type_id,
-            'checksum'    => hash_hmac('sha256', $hold->token, config('app.key')),
-        ],
-    ]);
-
-    $paymentTransaction->update([
-        'gateway_session_id' => $session->id,
-        'gateway_payment_intent_id' => $this->stripeObjectId($session->payment_intent ?? null),
-        'transaction_id' => $this->stripeTransactionId($session),
-        'gateway_payment_status' => $session->payment_status ?? null,
-        'raw_payload' => $this->stripePayload($session),
-    ]);
-    } catch (\Throwable $e) {
-        $paymentTransaction->update([
-            'status' => PaymentTransaction::STATUS_FAILED,
-            'failed_at' => now(),
-            'failure_reason' => $e->getMessage(),
-        ]);
-
-        Log::error('Stripe checkout session creation failed', [
-            'payment_transaction_id' => $paymentTransaction->id,
-            'error' => $e->getMessage(),
-        ]);
-
-        return response()->json(['message' => 'Unable to start payment right now. Please try again.'], 500);
-    }
-
-    return response()->json(['url' => $session->url]);
+        return $this->startPrePaymentCheckout($request);
     }
 
     public function prePaymentEmailVerification(string $booking_id)
@@ -2235,14 +1980,18 @@ class EventController extends Controller
                 'coupon_code' => $quote['coupon_code'],
                 'service_items' => $quote['service_items'],
                 'age_group_items' => $quote['age_group_items'],
-                'parking_slots' => $quote['parking_slots'],
-                'car_details' => $quote['car_details'],
                 'total_amount' => $quote['final_amount'],
                 'expires_at' => $this->checkoutHoldExpiresAt(),
             ]);
 
             $booking->refresh();
             $hold->refresh();
+        } catch (ValidationException $e) {
+            return $this->renderPrePaymentIssue(
+                $booking,
+                $hold,
+                collect($e->errors())->flatten()->first() ?: 'Additional service information is no longer valid.'
+            );
         } catch (\RuntimeException $e) {
             return $this->renderPrePaymentIssue($booking, $hold, $e->getMessage());
         }
@@ -2306,8 +2055,6 @@ class EventController extends Controller
             'amount' => $finalAmount,
             'quantity' => (int) $booking->qty,
             'selected_seats' => $booking->selected_seats,
-            'parking_slots' => (int) ($hold->parking_slots ?? 0),
-            'car_details' => $hold->car_details ?? [],
             'coupon_code' => $booking->coupon_code,
             'customer_name' => $booking->name,
             'customer_email' => $booking->email,
@@ -2868,7 +2615,6 @@ class EventController extends Controller
     {
         $quantity = max(1, (int) ($data['quantity'] ?? $hold->quantity));
         $ticketType = TicketType::findOrFail($hold->ticket_type_id);
-        $event = Event::findOrFail($ticketType->event_id);
         $selectedSeats = $data['selected_seats'] ?? $hold->selected_seats ?? [];
 
         if (is_string($selectedSeats)) {
@@ -2879,19 +2625,15 @@ class EventController extends Controller
             $selectedSeats = [];
         }
 
-        $carNumbers = $data['car_details'] ?? [];
-        if (is_string($carNumbers)) {
-            $carNumbers = json_decode($carNumbers, true) ?? [];
-        }
-        if (!is_array($carNumbers)) {
-            $carNumbers = [];
-        }
+        $serviceItems = is_array($hold->service_items)
+            ? $hold->service_items
+            : (json_decode((string) $hold->service_items, true) ?: []);
+        $serviceTotal = collect($serviceItems)->sum(
+            fn ($item) => max(0, (int) ($item['quantity'] ?? 0)) > 0
+                ? (float) ($item['total'] ?? 0)
+                : 0
+        );
 
-        $carNumbers = array_values(array_filter(array_map(function ($number) {
-            return trim((string) $number);
-        }, $carNumbers)));
-
-        $parkingSlots = max(0, (int) ($data['parking_slots'] ?? 0));
         $baseAmount = (float) $ticketType->ticket_price * $quantity;
         $bulkDiscountApplied = false;
         $couponApplied = false;
@@ -2925,23 +2667,7 @@ class EventController extends Controller
 
         $couponAmount = ($baseAmount * $finalDiscountPercent) / 100;
         $ticketTotal = max(0, round($baseAmount - $couponAmount, 2));
-        $parkingTotal = 0;
-
-        if ($parkingSlots > 0) {
-            $alreadyBooked = \App\Models\TicketParking::whereHas('booking', function ($query) use ($event) {
-                $query->where('event_id', $event->id);
-            })->count();
-
-            $availableSlots = max(0, (int) $event->car_parking_slots - $alreadyBooked);
-
-            if (!$event->enable_car_parking || $parkingSlots > $availableSlots) {
-                throw new \RuntimeException("Only $availableSlots parking slots remaining.");
-            }
-
-            $parkingTotal = $parkingSlots * (float) ($event->car_slot_price ?? 0);
-        }
-
-        $taxableBasis = $ticketTotal + $parkingTotal;
+        $taxableBasis = $ticketTotal + $serviceTotal;
         $taxAmount = 0;
         if ($ticketType->enable_tax && $ticketType->tax_value > 0) {
             $taxAmount = ($taxableBasis * $ticketType->tax_value) / 100;
@@ -3013,8 +2739,6 @@ class EventController extends Controller
                 'amount' => 0,
                 'quantity' => $quantity,
                 'selected_seats' => $selectedSeats,
-                'parking_slots' => (int) ($data['parking_slots'] ?? 0),
-                'car_details' => $carNumbers,
                 'coupon_code' => $couponCode,
                 'customer_name' => $data['name'] ?? null,
                 'customer_email' => $data['email'] ?? null,
@@ -3069,19 +2793,35 @@ class EventController extends Controller
                 ]);
         }
 
-        foreach (array_slice($carNumbers, 0, $parkingSlots) as $number) {
-            \App\Models\TicketParking::create([
+        foreach ($serviceItems as $serviceItem) {
+            $serviceQuantity = max(0, (int) ($serviceItem['quantity'] ?? 0));
+
+            if ($serviceQuantity <= 0) {
+                continue;
+            }
+
+            $bookingService = TicketCounterService::create([
                 'ticket_counter_id' => $booking->id,
-                'ticket_type_id' => $hold->ticket_type_id,
-                'car_number' => $number,
-                'parking_code' => 'PK-' . strtoupper(Str::random(10)),
-                'status' => 'unused',
+                'event_id' => $booking->event_id,
+                'event_service_id' => $serviceItem['id'] ?? null,
+                'service_name' => $serviceItem['name'] ?? 'Event Service',
+                'quantity' => $serviceQuantity,
+                'price' => (float) ($serviceItem['price'] ?? 0),
+                'total_amount' => (float) ($serviceItem['total'] ?? ($serviceQuantity * (float) ($serviceItem['price'] ?? 0))),
+                'service_code' => 'SV-' . strtoupper(Str::random(10)),
             ]);
+
+            app(EventServiceFieldResponseService::class)->sync(
+                $bookingService,
+                $serviceItem['field_responses'] ?? []
+            );
         }
+
+        app(\App\Services\ServicePassService::class)->ensurePassesForBooking($booking);
 
         $hold->delete();
 
-        return $booking;
+        return $booking->load(['services.fieldValues', 'services.passes', 'ageGroups', 'ticketType', 'event']);
     }
 
     private function finalizePendingCheckoutBooking(TicketCounter $booking, TicketHold $hold, array $data): TicketCounter
@@ -3098,8 +2838,6 @@ class EventController extends Controller
         $event = Event::findOrFail($booking->event_id);
         $selectedSeats = $this->normalizeSelectedSeats($hold->selected_seats);
         $quantity = max(1, (int) ($booking->qty ?: $hold->quantity));
-        $carNumbers = $this->normalizeCarDetails($hold->car_details ?? []);
-        $parkingSlots = max(0, (int) ($hold->parking_slots ?? 0));
         $serviceItems = is_array($hold->service_items) ? $hold->service_items : (json_decode((string) $hold->service_items, true) ?: []);
         $ageGroupItems = is_array($hold->age_group_items) ? $hold->age_group_items : (json_decode((string) $hold->age_group_items, true) ?: []);
 
@@ -3116,8 +2854,6 @@ class EventController extends Controller
         }
 
         $quantity = $quote['quantity'];
-        $carNumbers = $quote['car_details'];
-        $parkingSlots = $quote['parking_slots'];
         $serviceItems = $quote['service_items'];
         $ageGroupItems = $quote['age_group_items'];
 
@@ -3158,8 +2894,6 @@ class EventController extends Controller
                 'amount' => 0,
                 'quantity' => $quantity,
                 'selected_seats' => $selectedSeats,
-                'parking_slots' => $parkingSlots,
-                'car_details' => $carNumbers,
                 'coupon_code' => $booking->coupon_code,
                 'customer_name' => $booking->name,
                 'customer_email' => $booking->email,
@@ -3233,18 +2967,6 @@ class EventController extends Controller
                 ]);
         }
 
-        if (!$booking->parkings()->exists()) {
-            foreach (array_slice($carNumbers, 0, $parkingSlots) as $number) {
-                \App\Models\TicketParking::create([
-                    'ticket_counter_id' => $booking->id,
-                    'ticket_type_id' => $booking->ticket_type_id,
-                    'car_number' => $number,
-                    'parking_code' => 'PK-' . strtoupper(Str::random(10)),
-                    'status' => 'unused',
-                ]);
-            }
-        }
-
         if (!$booking->services()->exists()) {
             foreach ($serviceItems as $serviceItem) {
                 $serviceQuantity = max(0, (int) ($serviceItem['quantity'] ?? 0));
@@ -3253,7 +2975,7 @@ class EventController extends Controller
                     continue;
                 }
 
-                TicketCounterService::create([
+                $bookingService = TicketCounterService::create([
                     'ticket_counter_id' => $booking->id,
                     'event_id' => $booking->event_id,
                     'event_service_id' => $serviceItem['id'] ?? null,
@@ -3263,6 +2985,11 @@ class EventController extends Controller
                     'total_amount' => (float) ($serviceItem['total'] ?? ($serviceQuantity * (float) ($serviceItem['price'] ?? 0))),
                     'service_code' => 'SV-' . strtoupper(Str::random(10)),
                 ]);
+
+                app(EventServiceFieldResponseService::class)->sync(
+                    $bookingService,
+                    $serviceItem['field_responses'] ?? []
+                );
             }
         }
 
@@ -3270,7 +2997,7 @@ class EventController extends Controller
 
         $hold->delete();
 
-        return $booking->fresh(['parkings', 'services', 'ageGroups', 'ticketType', 'event']);
+        return $booking->fresh(['services.fieldValues', 'services.passes', 'ageGroups', 'ticketType', 'event']);
     }
 
     private function sendConfirmedTicketEmail(TicketCounter $booking): void
@@ -3425,9 +3152,7 @@ class EventController extends Controller
     $name       = $session->metadata->name ?? null;
     $countryId  = $session->metadata->country_id ?? null;
     $stateId    = $session->metadata->state_id ?? null;
-    $parkingSlots = $session->metadata->parking_slots ?? 0;
     $quantity = $session->metadata->quantity ?? 0;
-    $carNumbers   = json_decode($session->metadata->car_details ?? '[]', true);
     $rawSeats = $session->metadata->selected_seats ?? '[]';
 
     // 1. First decode: removes outer quotes and backslashes
@@ -3450,7 +3175,7 @@ class EventController extends Controller
     }
 
     try {
-    $bookingId = DB::transaction(function () use ($session, $token, $name, $email, $phonePrefix, $phone, $countryId, $stateId, $metaCoupon, $parkingSlots, $carNumbers, $quantity, $selectedSeats, $paymentTransaction, $transactionId, $paymentCompletedAt) {
+    $bookingId = DB::transaction(function () use ($session, $token, $name, $email, $phonePrefix, $phone, $countryId, $stateId, $metaCoupon, $quantity, $selectedSeats, $paymentTransaction, $transactionId, $paymentCompletedAt) {
         $hold = TicketHold::where('token', $token)->lockForUpdate()->first();
 
         if (!$hold) {
@@ -3466,8 +3191,6 @@ class EventController extends Controller
             'country_id' => $countryId,
             'state_id' => $stateId,
             'coupon_code' => $metaCoupon,
-            'parking_slots' => (int) $parkingSlots,
-            'car_details' => $carNumbers,
             'selected_seats' => $selectedSeats,
             'payment_status' => $session->payment_status,
             'payment_method' => 'stripe',
@@ -3582,8 +3305,6 @@ class EventController extends Controller
             'amount' => $this->stripeAmount($session),
             'quantity' => (int) ($session->metadata->quantity ?? 0),
             'selected_seats' => is_array($selectedSeats) ? $selectedSeats : null,
-            'parking_slots' => (int) ($session->metadata->parking_slots ?? 0),
-            'car_details' => json_decode((string) ($session->metadata->car_details ?? '[]'), true) ?: null,
             'coupon_code' => $session->metadata->coupon_code ?? null,
             'customer_name' => $session->metadata->name ?? null,
             'customer_email' => $session->metadata->email ?? null,

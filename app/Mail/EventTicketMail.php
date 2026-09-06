@@ -14,7 +14,6 @@ class EventTicketMail extends Mailable
     public $event;
     public $ticketType;
     public $pdfPath;
-    public $parkingPdfPath; // Changed from array to string for the consolidated file
     public $servicePdfPath;
 
     /**
@@ -23,16 +22,14 @@ class EventTicketMail extends Mailable
      * @param mixed $event
      * @param mixed $ticketType
      * @param string $pdfPath
-     * @param string|null $parkingPdfPath
      * @param string|null $servicePdfPath
      */
-    public function __construct($booking, $event, $ticketType, $pdfPath, $parkingPdfPath = null, $servicePdfPath = null)
+    public function __construct($booking, $event, $ticketType, $pdfPath, $servicePdfPath = null)
     {
         $this->booking        = $booking;
         $this->event          = $event;
         $this->ticketType     = $ticketType;
         $this->pdfPath        = $pdfPath;
-        $this->parkingPdfPath = $parkingPdfPath; // Now receiving a single path
         $this->servicePdfPath = $servicePdfPath;
     }
 
@@ -52,15 +49,7 @@ class EventTicketMail extends Mailable
             'mime' => 'application/pdf',
         ]);
 
-        // 2. Conditionally attach the single consolidated Parking PDF
-        if ($this->parkingPdfPath && file_exists($this->parkingPdfPath)) {
-            $email->attach($this->parkingPdfPath, [
-                'as'   => 'Parking-Passes-' . $this->booking->booking_id . '.pdf',
-                'mime' => 'application/pdf',
-            ]);
-        }
-
-        // 3. Conditionally attach the consolidated Service Passes PDF
+        // Conditionally attach the consolidated dynamic Service Passes PDF.
         if ($this->servicePdfPath && file_exists($this->servicePdfPath)) {
             $email->attach($this->servicePdfPath, [
                 'as'   => 'Service-Passes-' . $this->booking->booking_id . '.pdf',

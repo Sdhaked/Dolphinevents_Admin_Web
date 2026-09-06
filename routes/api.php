@@ -29,9 +29,6 @@ Route::prefix('checker')->group(function () {
     Route::post('/resend-otp', [TicketCheckerApiController::class, 'resendOtp']);
 
     Route::middleware('auth:sanctum')->group(function () {
-        // Check Car validity
-        Route::post('/check-car-ticket', [TicketCheckerApiController::class, 'checkCarTicket']);  
-
         // Check additional service pass validity
         Route::post('/check-service-ticket', [TicketCheckerApiController::class, 'checkServiceTicket']);
        

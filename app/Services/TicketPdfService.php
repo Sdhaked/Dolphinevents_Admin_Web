@@ -16,25 +16,31 @@ use Illuminate\Support\Str;
 class TicketPdfService
 {
     /**
-     * Generate ticket, parking, and service PDFs and return paths and metadata.
+     * Generate ticket and dynamic-service PDFs and return paths and metadata.
      *
      * @param  mixed  $booking
-     * @return array{event:\App\Models\Event|null,ticketType:\App\Models\TicketType|null,ticketPath:string,parkingPath:?string,servicePath:?string}
+     * @return array{event:\App\Models\Event|null,ticketType:\App\Models\TicketType|null,ticketPath:string,servicePath:?string}
      */
     public function generatePdfs($booking): array
     {
-        $serviceRelation = Schema::hasTable('ticket_counter_service_passes')
-            ? 'services.passes'
-            : 'services';
+        $serviceRelations = ['services'];
+        if (Schema::hasTable('ticket_counter_service_passes')) {
+            $serviceRelations[] = 'services.passes';
+        }
+        if (Schema::hasTable('ticket_counter_service_field_values')) {
+            $serviceRelations[] = 'services.fieldValues';
+        }
 
         $booking->load([
-            'parkings',
-            $serviceRelation,
+            ...$serviceRelations,
             'ageGroups',
         ]);
         $this->prepareBookedTicketsForPdf($booking);
         $this->ensureServiceCodes($booking);
         app(ServicePassService::class)->ensurePassesForBooking($booking);
+        if (Schema::hasTable('ticket_counter_service_field_values')) {
+            $booking->services->load('fieldValues');
+        }
 
         $event = Event::with('support')->find($booking->event_id);
         $ticketType = TicketType::find($booking->ticket_type_id);
@@ -54,22 +60,8 @@ class TicketPdfService
         ])->setPaper('a4')->output();
         Storage::disk('public')->put($ticketPath, $ticketPdf);
 
-        // Generate Parking PDF if exists
-        $parkingFinalPath = null;
-        if ($booking->parkings && $booking->parkings->count() > 0) {
-            $parkingFileName = "Parking_Passes_{$booking->booking_id}.pdf";
-            $parkingRelPath = "{$ticketDirectory}/{$parkingFileName}";
-
-            $parkingPdf = Pdf::loadView('website.events.event-parking-pdf', [
-                'booking'    => $booking,
-                'event'      => $event,
-                'ticketType' => $ticketType,
-                'parkings'   => $booking->parkings
-            ])->setPaper('a4')->output();
-
-            Storage::disk('public')->put($parkingRelPath, $parkingPdf);
-            $parkingFinalPath = storage_path("app/public/{$parkingRelPath}");
-        }
+        // A regenerated booking must not keep exposing a legacy static-parking PDF.
+        Storage::disk('public')->delete("{$ticketDirectory}/Parking_Passes_{$booking->booking_id}.pdf");
 
         // Generate dynamic Service Pass PDF if additional services exist.
         $serviceFinalPath = null;
@@ -94,7 +86,6 @@ class TicketPdfService
             'event' => $event,
             'ticketType' => $ticketType,
             'ticketPath' => $finalTicketPath,
-            'parkingPath' => $parkingFinalPath,
             'servicePath' => $serviceFinalPath,
         ];
     }
@@ -282,7 +273,6 @@ class TicketPdfService
             $data['event'],
             $data['ticketType'],
             $data['ticketPath'],
-            $data['parkingPath'],
             $data['servicePath']
         ));
     }

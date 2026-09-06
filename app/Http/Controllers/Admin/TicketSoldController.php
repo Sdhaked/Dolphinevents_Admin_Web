@@ -186,17 +186,33 @@ class TicketSoldController extends Controller
     {
         BookedTicket::where('ticket_counter_id', $ticket->id)->delete();
         TicketParking::where('ticket_counter_id', $ticket->id)->delete();
+
+        $bookingServiceIds = TicketCounterService::where('ticket_counter_id', $ticket->id)->pluck('id');
+        if ($bookingServiceIds->isNotEmpty() && Schema::hasTable('ticket_counter_service_field_values')) {
+            DB::table('ticket_counter_service_field_values')
+                ->whereIn('ticket_counter_service_id', $bookingServiceIds)
+                ->delete();
+        }
+
         if (Schema::hasTable('ticket_counter_service_passes')) {
             TicketCounterServicePass::where('ticket_counter_id', $ticket->id)->delete();
         }
         TicketCounterService::where('ticket_counter_id', $ticket->id)->delete();
     }
 
-    private function serviceTicketRelation(): string
+    private function serviceTicketRelations(): array
     {
-        return Schema::hasTable('ticket_counter_service_passes')
-            ? 'services.passes'
-            : 'services';
+        $relations = ['services'];
+
+        if (Schema::hasTable('ticket_counter_service_passes')) {
+            $relations[] = 'services.passes';
+        }
+
+        if (Schema::hasTable('ticket_counter_service_field_values')) {
+            $relations[] = 'services.fieldValues';
+        }
+
+        return $relations;
     }
 
     private function releaseBookedSeats(TicketCounter $ticket): void
@@ -302,8 +318,7 @@ class TicketSoldController extends Controller
             'creator', 
             'bookedTickets',
             'coupon',
-            'parkings',
-            $this->serviceTicketRelation(),
+            ...$this->serviceTicketRelations(),
             'country',
             'state',
             'contestentVotes.contestent',
@@ -327,8 +342,7 @@ class TicketSoldController extends Controller
             'event',
             'creator',
             'coupon',
-            'parkings',
-            $this->serviceTicketRelation(),
+            ...$this->serviceTicketRelations(),
             'country',
             'state',
             'paymentTransaction',
@@ -505,7 +519,7 @@ class TicketSoldController extends Controller
     public function regeneratePDF($id)
     {
         try {
-            $booking = TicketCounter::withTrashed()->with(['parkings', $this->serviceTicketRelation(), 'ticketType', 'event'])->findOrFail($id);
+            $booking = TicketCounter::withTrashed()->with([...$this->serviceTicketRelations(), 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->generatePdfs($booking);
             
             return response()->json([
@@ -527,16 +541,11 @@ class TicketSoldController extends Controller
     public function resendEmail($id)
     {
         try {
-            $booking = TicketCounter::withTrashed()->with(['parkings', $this->serviceTicketRelation(), 'ticketType', 'event'])->findOrFail($id);
+            $booking = TicketCounter::withTrashed()->with([...$this->serviceTicketRelations(), 'ticketType', 'event'])->findOrFail($id);
             app(TicketPdfService::class)->sendTicketEmail($booking);
             $booking->forceFill(['ticket_email_sent_at' => now()])->save();
-            $hasParking = $booking->parkings && $booking->parkings->count() > 0;
             $hasServices = $booking->services && $booking->services->count() > 0;
             $pdfTypes = ['ticket'];
-
-            if ($hasParking) {
-                $pdfTypes[] = 'parking';
-            }
 
             if ($hasServices) {
                 $pdfTypes[] = 'service';

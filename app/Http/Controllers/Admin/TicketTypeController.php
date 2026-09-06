@@ -398,9 +398,7 @@ class TicketTypeController extends Controller
 
         // Image handling
         if ($request->hasFile('featured_image')) {
-            if ($ticket->featured_image) {
-                Storage::disk('public')->delete($ticket->featured_image);
-            }
+            $this->deleteTicketTypePublicFileIfUnused($ticket->featured_image, (int) $ticket->id);
             $validated['featured_image'] = $request->file('featured_image')->store('ticket_types', 'public');
         }
 
@@ -496,9 +494,7 @@ class TicketTypeController extends Controller
         \DB::table('ticket_type_seats')->where('ticket_type_id', $id)->delete();
 
         // 2. Cleanup physical storage (Featured Image)
-        if ($ticket->featured_image) {
-            Storage::disk('public')->delete($ticket->featured_image);
-        }
+        $this->deleteTicketTypePublicFileIfUnused($ticket->featured_image, (int) $ticket->id);
 
         // 3. Delete the Ticket Type (BulkDiscounts will cascade if set in migration)
         $ticket->delete();
@@ -507,5 +503,37 @@ class TicketTypeController extends Controller
             'success' => true,
             'message' => 'Tickets deleted successfully!'
         ]);
+    }
+
+    private function deleteTicketTypePublicFileIfUnused(?string $path, int $ticketTypeIdToIgnore): void
+    {
+        if (!$path || !Storage::disk('public')->exists($path)) {
+            return;
+        }
+
+        $eventUsesPath = Event::withTrashed()
+            ->where(function ($query) use ($path) {
+                $query->where('event_pdf_sponser_image', $path)
+                    ->orWhere('featured_video', $path)
+                    ->orWhere('thumbnail', $path)
+                    ->orWhere('featured_image', $path)
+                    ->orWhere('venue_layout_image', $path);
+            })
+            ->exists();
+
+        if ($eventUsesPath) {
+            return;
+        }
+
+        $ticketTypeUsesPath = TicketType::withTrashed()
+            ->where('featured_image', $path)
+            ->where('id', '!=', $ticketTypeIdToIgnore)
+            ->exists();
+
+        if ($ticketTypeUsesPath) {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

@@ -50,9 +50,18 @@ class EventController extends Controller
                 ->findOrFail($validated['event_id']);
 
             // 2. Replicate the core Event
-            $newEvent = $original->replicate();
+            $newEvent = $original->replicate([
+                'enable_car_parking',
+                'car_parking_slots',
+                'car_slot_price',
+            ]);
             $newEvent->title = $validated['new_title'];
             $newEvent->status = Event::STATUS_DRAFT; 
+            $newEvent->featured_video = $this->copyPublicFile($original->featured_video, 'events/videos');
+            $newEvent->thumbnail = $this->copyPublicFile($original->thumbnail, 'events/thumbnails');
+            $newEvent->featured_image = $this->copyPublicFile($original->featured_image, 'events/images');
+            $newEvent->venue_layout_image = $this->copyPublicFile($original->venue_layout_image, 'events/images');
+            $newEvent->event_pdf_sponser_image = $this->copyPublicFile($original->event_pdf_sponser_image, 'events/pdf_sponsors');
             $newEvent->save(); 
 
             // 3. Duplicate Support Details
@@ -69,6 +78,7 @@ class EventController extends Controller
             foreach ($original->ticketTypes as $type) {
                 $newType = $type->replicate();
                 $newType->event_id = $newEvent->id;
+                $newType->featured_image = $this->copyPublicFile($type->featured_image, 'ticket_types');
                 $newType->save();
                 $ticketTypeMapping[$type->id] = $newType->id;
             }
@@ -289,9 +299,7 @@ class EventController extends Controller
             // Handle the File Upload
             if ($request->hasFile('event_pdf_sponser_image')) {
                 // Delete old image if it exists in storage
-                if ($pdf_sponsor_image_path && Storage::disk('public')->exists($pdf_sponsor_image_path)) {
-                    Storage::disk('public')->delete($pdf_sponsor_image_path);
-                }
+                $this->deletePublicFileIfUnused($pdf_sponsor_image_path, eventIdToIgnore: $event->id);
 
                 // Store new image in a dedicated folder
                 $pdf_sponsor_image_path = $request->file('event_pdf_sponser_image')
@@ -302,9 +310,7 @@ class EventController extends Controller
             // Featured Video
             if ($request->hasFile('featured_video')) {
                 // delete old if exists
-                if ($featured_video_path && Storage::disk('public')->exists($featured_video_path)) {
-                    Storage::disk('public')->delete($featured_video_path);
-                }
+                $this->deletePublicFileIfUnused($featured_video_path, eventIdToIgnore: $event->id);
 
                 // store new
                 $featured_video_path = $request->file('featured_video')->store('events/videos', 'public');
@@ -312,27 +318,21 @@ class EventController extends Controller
 
             // Thumbnail
             if ($request->hasFile('thumbnail')) {
-                if ($thumbnail_path && Storage::disk('public')->exists($thumbnail_path)) {
-                    Storage::disk('public')->delete($thumbnail_path);
-                }
+                $this->deletePublicFileIfUnused($thumbnail_path, eventIdToIgnore: $event->id);
 
                 $thumbnail_path = $request->file('thumbnail')->store('events/thumbnails', 'public');
             }
 
             // Featured Image
             if ($request->hasFile('featured_image')) {
-                if ($featured_image_path && Storage::disk('public')->exists($featured_image_path)) {
-                    Storage::disk('public')->delete($featured_image_path);
-                }
+                $this->deletePublicFileIfUnused($featured_image_path, eventIdToIgnore: $event->id);
 
                 $featured_image_path = $request->file('featured_image')->store('events/images', 'public');
             }
 
             // Venue Layout Image
             if ($request->hasFile('venue_layout_image')) {
-                if ($venue_layout_image_path && Storage::disk('public')->exists($venue_layout_image_path)) {
-                    Storage::disk('public')->delete($venue_layout_image_path);
-                }
+                $this->deletePublicFileIfUnused($venue_layout_image_path, eventIdToIgnore: $event->id);
 
                 $venue_layout_image_path = $request->file('venue_layout_image')->store('events/images', 'public');
             }
@@ -347,15 +347,12 @@ class EventController extends Controller
                 'title' => $request->input('title'),
                 'currency_id' => $request->input('currency_id'),
                 'is_featured' => $request->has('is_featured') ? 1 : 0,
-                'enable_car_parking' => $request->has('enable_car_parking', ) ? 1 : 0,
                 'enable_voting' => $isVotingEnabled,
                 'voting_title' => $request->input('voting_title'),
                 'voting_btn_title' => $request->input('voting_btn_title'),
                 'voting_des' => $request->input('voting_des'),
                 'event_pdf_sponser_image' => $pdf_sponsor_image_path,
                 'featured_video' => $featured_video_path,
-                'car_parking_slots' => $request->car_parking_slots,
-                'car_slot_price' => $request->car_slot_price,
                 'thumbnail' => $thumbnail_path,
                 'featured_image' => $featured_image_path,
                 'featured_image_alt_text' => $request->input('featured_image_alt_text'),
@@ -582,6 +579,25 @@ class EventController extends Controller
                 TicketParking::whereIn('ticket_counter_id', $bookingIds)->delete();
             }
 
+            if (\Illuminate\Support\Facades\Schema::hasTable('ticket_counter_services')) {
+                $bookingServiceIds = DB::table('ticket_counter_services')
+                    ->where('event_id', $id)
+                    ->pluck('id');
+
+                if ($bookingServiceIds->isNotEmpty()
+                    && \Illuminate\Support\Facades\Schema::hasTable('ticket_counter_service_field_values')) {
+                    DB::table('ticket_counter_service_field_values')
+                        ->whereIn('ticket_counter_service_id', $bookingServiceIds)
+                        ->delete();
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('ticket_counter_service_passes')) {
+                    DB::table('ticket_counter_service_passes')->where('event_id', $id)->delete();
+                }
+
+                DB::table('ticket_counter_services')->where('event_id', $id)->delete();
+            }
+
             if ($ticketCheckerIds->isNotEmpty() && \Illuminate\Support\Facades\Schema::hasTable('personal_access_tokens')) {
                 DB::table('personal_access_tokens')
                     ->where('tokenable_type', TicketChecker::class)
@@ -619,6 +635,17 @@ class EventController extends Controller
             DiscountCoupon::withTrashed()->where('event_id', $id)->forceDelete();
             TicketType::withTrashed()->where('event_id', $id)->forceDelete();
 
+            if (\Illuminate\Support\Facades\Schema::hasTable('event_services')) {
+                $eventServiceIds = DB::table('event_services')->where('event_id', $id)->pluck('id');
+
+                if ($eventServiceIds->isNotEmpty()
+                    && \Illuminate\Support\Facades\Schema::hasTable('event_service_fields')) {
+                    DB::table('event_service_fields')->whereIn('event_service_id', $eventServiceIds)->delete();
+                }
+
+                DB::table('event_services')->where('event_id', $id)->delete();
+            }
+
             // Delete Event-related data
             EventContestent::withTrashed()->where('event_id', $id)->forceDelete();
             EventSponsor::withTrashed()->where('event_id', $id)->forceDelete();
@@ -638,8 +665,8 @@ class EventController extends Controller
             $transactionActive = false;
 
             try {
-                if (!empty($filesToDelete)) {
-                    Storage::disk('public')->delete($filesToDelete);
+                foreach ($filesToDelete as $fileToDelete) {
+                    $this->deletePublicFileIfUnused($fileToDelete, eventIdToIgnore: $id, ticketTypeIdsToIgnore: $ticketTypeIds->all());
                 }
 
                 foreach ($directoriesToDelete as $directory) {
@@ -702,6 +729,71 @@ class EventController extends Controller
             'new_title' => 'Event name',
             'event_id' => 'Event',
         ];
+    }
+
+    private function copyPublicFile(?string $path, ?string $directory = null): ?string
+    {
+        if (!$path || !Storage::disk('public')->exists($path)) {
+            return $path;
+        }
+
+        $directory = trim(str_replace('\\', '/', $directory ?: dirname($path)), './');
+        $directory = $directory !== '' ? $directory : 'uploads';
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+        $newPath = $directory . '/' . (string) Str::uuid() . ($extension ? '.' . $extension : '');
+
+        if (!Storage::disk('public')->copy($path, $newPath)) {
+            throw new \RuntimeException('Unable to copy duplicate media file: ' . $path);
+        }
+
+        return $newPath;
+    }
+
+    private function deletePublicFileIfUnused(
+        ?string $path,
+        ?int $eventIdToIgnore = null,
+        array $ticketTypeIdsToIgnore = [],
+    ): void {
+        if (!$path || !Storage::disk('public')->exists($path)) {
+            return;
+        }
+
+        if ($this->publicFileIsUsedElsewhere($path, $eventIdToIgnore, $ticketTypeIdsToIgnore)) {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
+    }
+
+    private function publicFileIsUsedElsewhere(
+        string $path,
+        ?int $eventIdToIgnore = null,
+        array $ticketTypeIdsToIgnore = [],
+    ): bool {
+        $eventQuery = Event::withTrashed()
+            ->where(function ($query) use ($path) {
+                $query->where('event_pdf_sponser_image', $path)
+                    ->orWhere('featured_video', $path)
+                    ->orWhere('thumbnail', $path)
+                    ->orWhere('featured_image', $path)
+                    ->orWhere('venue_layout_image', $path);
+            });
+
+        if ($eventIdToIgnore) {
+            $eventQuery->where('id', '!=', $eventIdToIgnore);
+        }
+
+        if ($eventQuery->exists()) {
+            return true;
+        }
+
+        $ticketTypeQuery = TicketType::withTrashed()->where('featured_image', $path);
+
+        if (!empty($ticketTypeIdsToIgnore)) {
+            $ticketTypeQuery->whereNotIn('id', $ticketTypeIdsToIgnore);
+        }
+
+        return $ticketTypeQuery->exists();
     }
 
     private function eventValidationAttributes(): array

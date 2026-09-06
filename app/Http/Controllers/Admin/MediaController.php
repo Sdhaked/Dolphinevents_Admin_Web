@@ -61,7 +61,10 @@ class MediaController extends Controller
                 $record->save();
             }
 
-            if (Storage::disk('public')->exists($path) && ! Storage::disk('public')->delete($path)) {
+            if (
+                $this->shouldDeletePublicFile($path, $record, $field)
+                && ! Storage::disk('public')->delete($path)
+            ) {
                 throw new \RuntimeException($label.' file could not be deleted.');
             }
 
@@ -157,5 +160,37 @@ class MediaController extends Controller
             ],
             default => [null, '', false, 'Media'],
         };
+    }
+
+    private function shouldDeletePublicFile(string $path, Model $currentRecord, string $currentField): bool
+    {
+        if (! Storage::disk('public')->exists($path)) {
+            return false;
+        }
+
+        $eventQuery = Event::withTrashed()
+            ->where(function ($query) use ($path) {
+                $query->where('event_pdf_sponser_image', $path)
+                    ->orWhere('featured_video', $path)
+                    ->orWhere('thumbnail', $path)
+                    ->orWhere('featured_image', $path)
+                    ->orWhere('venue_layout_image', $path);
+            });
+
+        if ($currentRecord instanceof Event) {
+            $eventQuery->where('id', '!=', $currentRecord->id);
+        }
+
+        if ($eventQuery->exists()) {
+            return false;
+        }
+
+        $ticketTypeQuery = TicketType::withTrashed()->where('featured_image', $path);
+
+        if ($currentRecord instanceof TicketType && $currentField === 'featured_image') {
+            $ticketTypeQuery->where('id', '!=', $currentRecord->id);
+        }
+
+        return ! $ticketTypeQuery->exists();
     }
 }
